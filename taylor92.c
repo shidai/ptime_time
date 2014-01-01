@@ -1,0 +1,839 @@
+// functions used to derive phase shifts, according to Taylor 1992  
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <math.h>
+#include <fftw3.h>
+//#include <gsl/gsl_rng.h>
+//#include <gsl/gsl_randist.h>
+#include "ptime_time.h"
+//#include "nrutil.h"
+#define ITMAX 100000  // Maximum allowed number of iterations.
+#define EPS 1.0e-16 // Machine double floating-point precision.
+//#define EPS 3.0e-8 // Machine floating-point precision.
+#define SIGN(a,b) ((b) >= 0.0 ? fabs(a) : -fabs(a))
+double pi=3.1415926;
+
+double A7 (double phase, double a_s[][NP], double a_p[][NP], double p_s[][NP], double p_p[][NP], int num, int nchn)
+// calculate function A7 in Taylor 92
+//double A7 (int n, double *amp_s, double *amp_p, double *phi_s, double *phi_p, double phase)
+{
+	double A7=0;
+	int i,j;
+
+	for (i = 0; i < nchn; i++)
+	{
+		for (j = 0; j < num; j++)
+	    {
+			A7+=(j+1)*a_s[i][j]*a_p[i][j]*sin(p_s[i][j]-p_p[i][j]+(j+1)*phase);
+		//printf ("%lf %lf\n", a_s[i], p_s[i]);
+		}
+	}
+	
+	return A7;
+}
+
+double A7_multi (double phase, double a_s[][NP], double a_p[][NP], double p_s[][NP], double p_p[][NP], int num, int nchn, double *rms)
+// calculate function A7 in Taylor 92, for multi-frequency channel
+//double A7 (int n, double *amp_s, double *amp_p, double *phi_s, double *phi_p, double phase)
+{
+	double A7=0;
+	int i,j;
+
+	for (i = 0; i < nchn; i++)
+	{
+		for (j = 0; j < num; j++)
+	    {
+			A7+=((j+1)*a_s[i][j]*a_p[i][j]*sin(p_s[i][j]-p_p[i][j]+(j+1)*phase))/(rms[i]*rms[i]);
+		//printf ("%lf %lf\n", a_s[i], p_s[i]);
+		}
+	}
+	
+	return A7;
+}
+
+double A9 (double phase, double a_s[][NP], double a_p[][NP], double p_s[][NP], double p_p[][NP], int num, int nchn)
+// calculate function A9 in Taylor 92
+{
+	double A9=0.0, sum=0.0;
+	int i,j;
+
+	for (i = 0; i < nchn; i++)
+	{
+	    for (j = 0; j < num; j++)
+	    {
+		    A9+=a_s[i][j]*a_p[i][j]*cos(p_s[i][j]-p_p[i][j]+(j+1)*phase);
+		    sum+=a_s[i][j]*a_s[i][j];
+		    //printf ("%lf %lf\n", a_s[i], p_s[i]);
+		}
+	}
+	
+	A9=A9/sum;
+
+	return A9;
+}
+
+double A9_multi (double phase, double a_s[][NP], double a_p[][NP], double p_s[][NP], double p_p[][NP], int num, int nchn, double *rms)
+{
+// calculate function A9 in Taylor 92, for multi-frequency channel
+	double A9=0.0, sum=0.0;
+	int i,j;
+
+	for (i = 0; i < nchn; i++)
+	{
+	    for (j = 0; j < num; j++)
+	    {
+		    A9+=(a_s[i][j]*a_p[i][j]*cos(p_s[i][j]-p_p[i][j]+(j+1)*phase))/(rms[i]*rms[i]);
+		    sum+=(a_s[i][j]*a_s[i][j])/(rms[i]*rms[i]);
+		    //printf ("%lf %lf\n", a_s[i], p_s[i]);
+		}
+	}
+	
+	A9=A9/sum;
+
+	return A9;
+}
+
+int dft_profiles (int N, double *in, fftw_complex *out)
+// dft of profiles
+{
+	//  dft of profiles 
+	///////////////////////////////////////////////////////////////////////
+	
+	//printf ("%lf\n", in[0]);
+	//double *in;
+	//fftw_complex *out;
+	fftw_plan p;
+	
+	//in = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * N);
+	//out = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * N);
+	p = fftw_plan_dft_r2c_1d(N, in, out, FFTW_MEASURE);
+
+	fftw_execute(p);
+
+	fftw_destroy_plan(p);
+	//fftw_free(in); 
+	//fftw_free(out);
+  
+	return 0;
+}
+
+//int error (double phase, double b, double a,  double *errphase, double *errb)
+int error (double phase, double b, double *errphase, double *errb, double a_s[][NP], double a_p[][NP], double p_s[][NP], double p_p[][NP], int num, int nchn)
+// calculate the errors of phase, a and b according to Talyor 1992  
+{
+	double rms,gk,s1,s2;
+	int i,j,n;
+
+	gk=0.0;
+	n=0;
+
+	for (i = 0; i < nchn; i++)
+	{
+	    for (j = 0; j < num; j++)
+	    {
+		    //gk+=a_p[i]*a_p[i]+b*b*a_s[i]*a_s[i]-2.0*b*a_s[i]*a_p[i]*cos(p_p[i]-p_s[i]-(i+1)*phase)+a*a*1024.0*1024.0-2.0*a*1024.0*a_p[i]*cos(p_p[i])+2.0*a*b*1024.0*a_s[i]*cos(p_s[i]+(i+1)*phase);
+		    gk+=a_p[i][j]*a_p[i][j]+b*b*a_s[i][j]*a_s[i][j]-2.0*b*a_s[i][j]*a_p[i][j]*cos(p_p[i][j]-p_s[i][j]-(j+1)*phase);
+		//printf ("%lf %lf\n", a_s[i], p_s[i]);
+		s1+=(j+1)*(j+1)*a_p[i][j]*a_s[i][j]*cos(p_p[i][j]-p_s[i][j]-(j+1)*phase);
+		s2+=a_s[i][j]*a_s[i][j];
+		n++;
+		}
+	}
+	
+	rms=sqrt(gk/n);
+
+	(*errphase)=rms/sqrt(2.0*b*s1);
+	(*errb)=rms/sqrt(2.0*s2);
+
+	return 0;
+}
+
+int error_multi (double phase, double b, double *errphase, double *errb, double a_s[][NP], double a_p[][NP], double p_s[][NP], double p_p[][NP], int num, int nchn, double *rms)
+// calculate the errors of phase, a and b according to Talyor 1992  
+{
+	double s1,s2;
+	int i,j,n;
+
+	n=0;
+
+	for (i = 0; i < nchn; i++)
+	{
+	    for (j = 0; j < num; j++)
+	    {
+		    s1+=((j+1)*(j+1)*a_p[i][j]*a_s[i][j]*cos(p_p[i][j]-p_s[i][j]-(j+1)*phase))/(rms[i]*rms[i]);
+		    s2+=(a_s[i][j]*a_s[i][j])/(rms[i]*rms[i]);
+		n++;
+		}
+	}
+	
+	(*errphase)=1.0/sqrt(2.0*b*s1);
+	(*errb)=1.0/sqrt(2.0*s2);
+
+	return 0;
+}
+
+double zbrent(double (*func)(double phase, double a_s[][NP], double a_p[][NP], double p_s[][NP], double p_p[][NP], int num, int nchn), double x1, double x2, double tol, double a_s[][NP], double a_p[][NP], double p_s[][NP], double p_p[][NP], int num, int nchn)
+//	Using Brent’s method, find the root of a function func known to lie between x1 and x2. The root, returned as zbrent, will be refined until its accuracy is tol.
+{
+	int iter;
+	double a=x1,b=x2,c=x2,d,e,min1,min2;
+	double fa=(*func)(a, a_s, a_p, p_s, p_p, num, nchn),fb=(*func)(b, a_s, a_p, p_s, p_p, num, nchn),fc,p,q,r,s,tol1,xm;
+
+	if ((fa > 0.0 && fb > 0.0) || (fa < 0.0 && fb < 0.0))
+		puts ("Root must be bracketed in zbrent\n");
+
+	fc=fb;
+	for (iter=1;iter<=ITMAX;iter++) 
+	{
+		if ((fb > 0.0 && fc > 0.0) || (fb < 0.0 && fc < 0.0)) 
+		{
+			c=a;   // Rename a, b, c and adjust bounding interval d.
+			fc=fa;
+			e=d=b-a;
+		}
+		if (fabs(fc) < fabs(fb)) 
+		{
+			a=b;
+			b=c;
+			c=a;
+			fa=fb;
+			fb=fc;
+			fc=fa;
+		}
+
+		tol1=2.0*EPS*fabs(b)+0.5*tol;   // Convergence check.
+		xm=0.5*(c-b);
+
+		if (fabs(xm) <= tol1 || fb == 0.0) return b;
+		if (fabs(e) >= tol1 && fabs(fa) > fabs(fb)) 
+		{
+			s=fb/fa;  // Attempt inverse quadratic interpolation.
+
+			if (a == c) 
+			{
+				p=2.0*xm*s;
+				q=1.0-s;
+			} 
+			else 
+			{
+				q=fa/fc;
+				r=fb/fc;
+				p=s*(2.0*xm*q*(q-r)-(b-a)*(r-1.0));
+				q=(q-1.0)*(r-1.0)*(s-1.0);
+			}
+			if (p > 0.0) q = -q;  // Check whether in bounds.
+
+			p=fabs(p);
+			min1=3.0*xm*q-fabs(tol1*q);
+			min2=fabs(e*q);
+
+			if (2.0*p < (min1 < min2 ? min1 : min2)) 
+			{
+				e=d;  // Accept interpolation.
+				d=p/q;
+			} 
+			else 
+			{
+				d=xm; // Interpolation failed, use bisection.
+				e=d;
+			}
+		} 
+		else  // Bounds decreasing too slowly, use bisection.
+		{
+			d=xm;
+			e=d;
+		}
+		a=b;  //  Move last best guess to a.
+		fa=fb;
+		if (fabs(d) > tol1)     //  Evaluate new trial root.
+			b += d;
+		else
+			b += SIGN(tol1,xm);
+
+		fb=(*func)(b, a_s, a_p, p_s, p_p, num, nchn);
+	}
+
+	puts ("Maximum number of iterations exceeded in zbrent\n");
+
+	return 0.0;
+}
+
+double zbrent_multi(double (*func)(double phase, double a_s[][NP], double a_p[][NP], double p_s[][NP], double p_p[][NP], int num, int nchn, double *rms), double x1, double x2, double tol, double a_s[][NP], double a_p[][NP], double p_s[][NP], double p_p[][NP], int num, int nchn, double *rms)
+{
+	int iter;
+	double a=x1,b=x2,c=x2,d,e,min1,min2;
+	double fa=(*func)(a, a_s, a_p, p_s, p_p, num, nchn, rms),fb=(*func)(b, a_s, a_p, p_s, p_p, num, nchn, rms),fc,p,q,r,s,tol1,xm;
+
+	if ((fa > 0.0 && fb > 0.0) || (fa < 0.0 && fb < 0.0))
+		puts ("Root must be bracketed in zbrent\n");
+
+	fc=fb;
+	for (iter=1;iter<=ITMAX;iter++) 
+	{
+		if ((fb > 0.0 && fc > 0.0) || (fb < 0.0 && fc < 0.0)) 
+		{
+			c=a;   // Rename a, b, c and adjust bounding interval d.
+			fc=fa;
+			e=d=b-a;
+		}
+		if (fabs(fc) < fabs(fb)) 
+		{
+			a=b;
+			b=c;
+			c=a;
+			fa=fb;
+			fb=fc;
+			fc=fa;
+		}
+
+		tol1=2.0*EPS*fabs(b)+0.5*tol;   // Convergence check.
+		xm=0.5*(c-b);
+
+		if (fabs(xm) <= tol1 || fb == 0.0) return b;
+		if (fabs(e) >= tol1 && fabs(fa) > fabs(fb)) 
+		{
+			s=fb/fa;  // Attempt inverse quadratic interpolation.
+
+			if (a == c) 
+			{
+				p=2.0*xm*s;
+				q=1.0-s;
+			} 
+			else 
+			{
+				q=fa/fc;
+				r=fb/fc;
+				p=s*(2.0*xm*q*(q-r)-(b-a)*(r-1.0));
+				q=(q-1.0)*(r-1.0)*(s-1.0);
+			}
+			if (p > 0.0) q = -q;  // Check whether in bounds.
+
+			p=fabs(p);
+			min1=3.0*xm*q-fabs(tol1*q);
+			min2=fabs(e*q);
+
+			if (2.0*p < (min1 < min2 ? min1 : min2)) 
+			{
+				e=d;  // Accept interpolation.
+				d=p/q;
+			} 
+			else 
+			{
+				d=xm; // Interpolation failed, use bisection.
+				e=d;
+			}
+		} 
+		else  // Bounds decreasing too slowly, use bisection.
+		{
+			d=xm;
+			e=d;
+		}
+		a=b;  //  Move last best guess to a.
+		fa=fb;
+		if (fabs(d) > tol1)     //  Evaluate new trial root.
+			b += d;
+		else
+			b += SIGN(tol1,xm);
+
+		fb=(*func)(b, a_s, a_p, p_s, p_p, num, nchn, rms);
+	}
+
+	puts ("Maximum number of iterations exceeded in zbrent\n");
+
+	return 0.0;
+}
+
+int find_peak (int n, double *s, int *position)
+{
+	int i;
+	double temp[n];
+	double peak;
+
+	for (i=0;i<n;i++)
+	{
+		temp[i]=s[i];
+	}
+
+	double a,b,c;
+	for (i=0;i<n-1;i++)
+	{
+		a=temp[i];
+		b=temp[i+1];
+		c=(a>=b ? a : b);
+
+		temp[i+1]=c;
+	}
+	peak=temp[n-1];
+
+	for (i=0;i<n;i++)
+	{
+		if (fabs(peak-s[i])<1.0e-3)
+		{
+			(*position)=i;
+		}
+	}
+
+	return 0;
+}
+
+/*int main (void)
+{
+	int i; 
+	double s[1024];
+
+	double x=0.0;
+	for (i=0;i<1024;i++)
+	{
+		x+=1.0;
+		s[i]=x;
+	}
+
+	printf ("%lf\n", find_peak(1024,s));
+
+	return 0;
+}*/
+
+double find_peak_value (int n, double *s)
+{
+	int i;
+	double temp[n];
+
+	for (i=0;i<n;i++)
+	{
+		temp[i]=s[i];
+	}
+
+	double a,b,c;
+	for (i=0;i<n-1;i++)
+	{
+		a=temp[i];
+		b=temp[i+1];
+		c=(a>=b ? a : b);
+
+		temp[i+1]=c;
+	}
+
+	return temp[n-1];
+}
+
+/*int main (void)
+{
+	int i; 
+	double s[1024];
+
+	double x=0.0;
+	for (i=0;i<1024;i++)
+	{
+		x+=1.0;
+		s[i]=x;
+	}
+
+	printf ("%lf\n", find_peak(1024,s));
+
+	return 0;
+}*/
+
+double get_toa (double *s, double *p, double psrfreq, int nphase)
+// calculate the phase shift between template and simulated (or real) data 
+// error of phase can be calculated
+// initial guess of phase shift is added
+// try to do two-dim template matching
+{
+    //int nphase=1024;
+    int nchn=1;
+
+	// read a std
+	
+	//puts(argv[1]);
+	//puts(argv[2]);
+	//double t[nphase*nchn],s[nphase*nchn];
+	//int n;
+
+	//readfile(name,&n,t,s);
+	//printf ("%d\n", n);
+	//puts(argv[1]);
+
+	//////////////////////////////////////////////////////////////////////////
+	// simulate data
+
+	//double p[nphase*nchn];
+	//double SNR=atof(argv[2]);
+	//simulate(n,SNR,s,p);//*/
+	
+	/////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////
+	// dft profile and template
+	
+	//nchn = n/nphase;
+	//printf ("%d\n", nchn);
+	int k;  // k=nphase/2
+
+	//double amp_s[nchn][nphase/2],amp_p[nchn][nphase/2];  // elements for calculating A7
+	//double phi_s[nchn][nphase/2],phi_p[nchn][nphase/2];
+	double amp_s[nchn][NP],amp_p[nchn][NP];  // elements for calculating A7
+	double phi_s[nchn][NP],phi_p[nchn][NP];  // the second dim should be NP, which is large enough for different observations
+
+	preA7(&k, amp_s, amp_p, phi_s, phi_p, s, p, nphase, nchn);
+	//printf ("%d\n", nchn);
+	
+	// initial guess of the phase
+    int peak_s, peak_p;	
+
+	find_peak(nphase,s,&peak_s);
+	find_peak(nphase,p,&peak_p);
+
+	int d;
+	double step;
+	double ini_phase,up_phase,low_phase;
+
+	d=peak_p-peak_s;
+	step=2.0*3.1415926/(10.0*nphase);
+	//step=2.0*3.1415926/10240.0;
+
+	if (d>=nphase/2)
+	{
+		ini_phase=2.0*3.1415926*(nphase-1-d)/nphase;
+		//ini_phase=2.0*3.1415926*(1023-d)/1024.0;
+		up_phase=ini_phase+step;
+		low_phase=ini_phase-step;
+		while (A7(up_phase, amp_s, amp_p, phi_s, phi_p, k, nchn)*A7(low_phase, amp_s, amp_p, phi_s, phi_p, k, nchn)>0.0)
+		{
+		    up_phase+=step;
+		    low_phase-=step;
+		}
+	}
+	else
+	{
+		ini_phase=-2.0*3.1415926*d/nphase;
+		//ini_phase=-2.0*3.1415926*d/1024.0;
+		up_phase=ini_phase+step;
+		low_phase=ini_phase-step;
+		while (A7(up_phase, amp_s, amp_p, phi_s, phi_p, k, nchn)*A7(low_phase, amp_s, amp_p, phi_s, phi_p, k, nchn)>0.0)
+		{
+		    up_phase+=step;
+		    low_phase-=step;
+		}
+	}
+
+    // calculate phase shift, a and b
+    double phase,b;
+    phase=zbrent(A7, low_phase, up_phase, 1.0e-16, amp_s, amp_p, phi_s, phi_p, k, nchn);
+    //phase=zbrent(A7, -1.0, 1.0, 1.0e-16);
+    //phase=zbrent(A7, -0.005, 0.005, 1.0e-16);
+    b=A9(phase, amp_s, amp_p, phi_s, phi_p, k, nchn);
+    //a=A4(b);
+
+		
+	//printf ("%.10lf %.10lf\n", phase, A7(phase));
+	//printf ("%.10lf \n", ((phase/3.1415926)*5.75/2.0)*1.0e+3);  // microseconds
+	//printf ("%.10lf \n", b);
+	//printf ("%.10lf \n", a);
+	//printf ("///////////////////////// \n");
+		
+	
+	// calculate the errors of phase and b
+    double errphase, errb;	
+
+	error(phase,b,&errphase,&errb, amp_s, amp_p, phi_s, phi_p, k,nchn);
+	printf ("%.10lf %.10lf\n", ((phase/3.1415926)/(psrfreq*2.0))*1.0e+6, ((errphase/3.1415926)/(psrfreq*2.0))*1.0e+6);  // microseconds
+	//printf ("%.10lf %.10lf\n", ((phase/3.1415926)*4.569651/2.0)*1.0e+3, ((errphase/3.1415926)*4.569651/2.0)*1.0e+3);  // microseconds
+	//printf ("errphase %.10lf \n", ((errphase/3.1415926)*5.75/2.0)*1.0e+6);
+	//printf ("errb %.10lf \n", errb);
+	
+	// calculate the rms
+	double rms;
+	cal_rms(phase,b,&rms, amp_s, amp_p, phi_s, phi_p, k,nchn);
+
+	return rms;
+}
+
+int get_toa_multi (double *s, double *p, double *rms, int nchn, double *phasex, double *errphasex, double psrfreq, int nphase)
+{
+    //int nphase=1024;
+
+	// read a std
+	
+	//puts(argv[1]);
+	//puts(argv[2]);
+	//double t[nphase*nchn],s[nphase*nchn];
+	//int n;
+
+	//readfile(name,&n,t,s);
+	//printf ("%d\n", n);
+	//puts(argv[1]);
+
+	//////////////////////////////////////////////////////////////////////////
+	// simulate data
+
+	//double p[nphase*nchn];
+	//double SNR=atof(argv[2]);
+	//simulate(n,SNR,s,p);//*/
+	
+	/////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////
+	// dft profile and template
+	
+	//nchn = n/nphase;
+	//printf ("%d\n", nchn);
+	int k;  // k=nphase/2
+
+	//double amp_s[nchn][nphase/2],amp_p[nchn][nphase/2];  // elements for calculating A7
+	//double phi_s[nchn][nphase/2],phi_p[nchn][nphase/2];
+	double amp_s[nchn][NP],amp_p[nchn][NP];  // elements for calculating A7
+	double phi_s[nchn][NP],phi_p[nchn][NP];  // the second dim should be NP, which is large enough for different observations
+
+	preA7(&k, amp_s, amp_p, phi_s, phi_p, s, p, nphase, nchn);
+	
+	// initial guess of the phase
+    int peak_s, peak_p;	
+
+	find_peak(nphase,s,&peak_s);
+	find_peak(nphase,p,&peak_p);
+
+	int d;
+	double step;
+	double ini_phase,up_phase,low_phase;
+
+	d=peak_p-peak_s;
+	step=2.0*3.1415926/(10.0*nphase);
+	//step=2.0*3.1415926/10240.0;
+
+	if (d>=nphase/2)
+	{
+		ini_phase=2.0*3.1415926*(nphase-1-d)/nphase;
+		up_phase=ini_phase+step;
+		low_phase=ini_phase-step;
+		while (A7_multi(up_phase, amp_s, amp_p, phi_s, phi_p, k, nchn, rms)*A7_multi(low_phase, amp_s, amp_p, phi_s, phi_p, k, nchn, rms)>0.0)
+		{
+		    up_phase+=step;
+		    low_phase-=step;
+		}
+	}
+	else
+	{
+		ini_phase=-2.0*3.1415926*d/nphase;
+		up_phase=ini_phase+step;
+		low_phase=ini_phase-step;
+		while (A7_multi(up_phase, amp_s, amp_p, phi_s, phi_p, k, nchn, rms)*A7_multi(low_phase, amp_s, amp_p, phi_s, phi_p, k, nchn, rms)>0.0)
+		{
+		    up_phase+=step;
+		    low_phase-=step;
+		}
+	}
+
+    // calculate phase shift, a and b
+    double phase,b;
+    phase=zbrent_multi(A7_multi, low_phase, up_phase, 1.0e-16, amp_s, amp_p, phi_s, phi_p, k, nchn, rms);
+    //phase=zbrent(A7, -1.0, 1.0, 1.0e-16);
+    //phase=zbrent(A7, -0.005, 0.005, 1.0e-16);
+    b=A9_multi(phase, amp_s, amp_p, phi_s, phi_p, k, nchn, rms);
+    //a=A4(b);
+
+		
+	//printf ("%.10lf %.10lf\n", phase, A7(phase));
+	//printf ("%.10lf \n", ((phase/3.1415926)*5.75/2.0)*1.0e+3);  // microseconds
+	//printf ("%.10lf \n", b);
+	//printf ("%.10lf \n", a);
+	//printf ("///////////////////////// \n");
+		
+	
+	// calculate the errors of phase and b
+    double errphase, errb;	
+
+	error_multi(phase,b,&errphase,&errb, amp_s, amp_p, phi_s, phi_p, k, nchn, rms);
+	printf ("multi-template\n");
+	printf ("%.10lf %.10lf\n", ((phase/3.1415926)/(psrfreq*2.0))*1.0e+6, ((errphase/3.1415926)/(psrfreq*2.0))*1.0e+6);  // microseconds
+	//printf ("%.10lf %.10lf\n", ((phase/3.1415926)*4.569651/2.0)*1.0e+3, ((errphase/3.1415926)*4.569651/2.0)*1.0e+3);  // microseconds
+	//printf ("errphase %.10lf \n", ((errphase/3.1415926)*5.75/2.0)*1.0e+6);
+	//printf ("errb %.10lf \n", errb);
+	
+	(*phasex) = phase;
+	(*errphasex) = errphase;
+
+	return 0;
+}
+
+int preA7 (int *k, double amp_s[][NP], double amp_p[][NP], double phi_s[][NP], double phi_p[][NP], double *s, double *p, int nphase, int nchn)
+// preparation for calculating A7 of Talyor 1992  
+{
+	// nphase is the dimention of one profile, nchn is number of profiles
+	// k is the dimention of amp of one profile 
+	int i,j;
+	
+	/////////////////////////////////////////////////////////////////////////////////
+	double test[nphase];  // initialize the system, don't know why....
+
+	for (i=0;i<nphase;i++)
+	{
+		test[i]=s[i];
+	}
+	fftw_complex *out_t;
+	out_t = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * nphase);
+	dft_profiles(nphase,test,out_t);
+	//////////////////////////////////////////////////////////////////////////////
+
+    fftw_complex *out_s;
+	fftw_complex *out_p;
+	
+	out_s = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * nphase);
+	out_p = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * nphase);
+	
+	double s_temp[nphase];  // store one template and profile
+	double p_temp[nphase];  
+
+	int n;
+	double r_s[nphase/2],im_s[nphase/2];
+	double r_p[nphase/2],im_p[nphase/2];
+	for (i = 0; i < nchn; i++)
+	{
+	    for (j=0;j<nphase;j++)
+	    {
+		    s_temp[j]=s[i*nphase + j];
+		    p_temp[j]=p[i*nphase + j];
+	    }
+
+	    dft_profiles(nphase,s_temp,out_s);
+	    //printf ("%lf %lf\n", out_s[1][0], out_s[1][1]);
+
+	    dft_profiles(nphase,p_temp,out_p);
+
+	    //double amp_s[N/2],phi_s[N/2];
+	    //double amp_p[N/2],phi_p[N/2];
+
+		n = 0;
+	    for (j = 0; j <= nphase/2-1; j++)
+	    {
+		    r_s[j]=out_s[j+1][0];
+		    im_s[j]=out_s[j+1][1];
+		    r_p[j]=out_p[j+1][0];
+		    im_p[j]=out_p[j+1][1];
+		    //printf ("%lf %lf\n", r_p[i], im_p[i]);
+		    //printf ("%lf %lf\n", out_s[i][0], out_s[i][1]);
+		    n++;
+	    }
+	    //printf ("%d\n", n);
+	    //printf ("%d %d\n", nphase, nchn);
+
+	    for (j = 0; j < n; j++)
+	    {
+		    amp_s[i][j]=sqrt(r_s[j]*r_s[j]+im_s[j]*im_s[j]);
+		    amp_p[i][j]=sqrt(r_p[j]*r_p[j]+im_p[j]*im_p[j]);
+		    phi_s[i][j]=atan2(im_s[j],r_s[j]);
+		    phi_p[i][j]=atan2(im_p[j],r_p[j]);
+		    //printf ("%lf %lf %lf\n", r_s[i], im_s[i], amp_s[i]);
+		    //printf ("%lf %lf %lf\n", r_p[i], im_p[i], amp_p[i]);
+		    //printf ("%lf\n", amp_s[i]);
+		    //printf ("%lf\n", amp_p[i]);
+	    }
+	}
+	(*k)=n;
+
+	fftw_free(out_s); 
+	fftw_free(out_p); 
+	fftw_free(out_t); 
+
+	return 0;
+}
+
+int cal_rms (double phase, double b, double *rms, double a_s[][NP], double a_p[][NP], double p_s[][NP], double p_p[][NP], int num, int nchn)
+// calculate the rms of each subchannel  
+{
+	double gk;
+	int i,j,n;
+
+	gk=0.0;
+	n=0;
+
+	for (i = 0; i < nchn; i++)
+	{
+	    for (j = 0; j < num; j++)
+	    {
+		    //gk+=a_p[i]*a_p[i]+b*b*a_s[i]*a_s[i]-2.0*b*a_s[i]*a_p[i]*cos(p_p[i]-p_s[i]-(i+1)*phase)+a*a*1024.0*1024.0-2.0*a*1024.0*a_p[i]*cos(p_p[i])+2.0*a*b*1024.0*a_s[i]*cos(p_s[i]+(i+1)*phase);
+		    gk+=a_p[i][j]*a_p[i][j]+b*b*a_s[i][j]*a_s[i][j]-2.0*b*a_s[i][j]*a_p[i][j]*cos(p_p[i][j]-p_s[i][j]-(j+1)*phase);
+		//printf ("%lf %lf\n", a_s[i], p_s[i]);
+		n++;
+		}
+	}
+	
+	(*rms)=sqrt(gk/n);
+
+	return 0;
+}
+
+/*
+int simulate (int n, double SNR, double *s, double *p)
+// simulate pulse profiles, adding white noise; return simulated profiles
+{
+	// simulate a profile with white noise
+	///////////////////////////////////////////////////////////////////////
+	// initialize gsl 
+	
+	int i;
+	const gsl_rng_type * T;
+	gsl_rng * r;
+
+	gsl_rng_env_setup();
+	T = gsl_rng_default;
+	r = gsl_rng_alloc (T);
+  
+	////////////////////////////////////////////////////////////////////////
+	//  determine the amplitude of white noise according to SNR
+	
+	double scale;   // the scale multiply to white noise to get certain SNR
+	double amp_noise, noise[n];
+	double peak_s;
+
+	for (i=0;i<n;i++)
+	{
+		noise[i]=gsl_ran_gaussian(r,1.0);
+		amp_noise+=noise[i]*noise[i];
+	}
+	
+	amp_noise=sqrt(amp_noise/n);
+
+	peak_s=find_peak_value(n,s);   // find the peak flux of the std
+    //printf ("peak of std: %g\n", peak_s);
+
+	scale=peak_s/(SNR*amp_noise);
+    //printf ("%g\n", scale);
+	
+	//////////////////////////////////////////////////////////////////////////
+	//  add noise to std ==> p
+
+	for (i=0;i<n;i++)
+	{
+		p[i]=(s[i]+scale*noise[i]);
+	}
+
+	
+	double peak_p;
+	peak_p=find_peak(n,p);  // find the peak flux of the profile
+    //printf ("peak of profile: %g\n", peak_p);
+
+	//  normalize the std and profile
+	
+	for (i=0;i<n;i++)
+	{
+		p[i]=p[i]/peak_p;
+		s[i]=s[i]/peak_s;
+		//printf ("%g %g\n", s[i], p[i]);
+	}
+
+	//double rms=0.0;
+	//int m=0;
+
+	//for (i=300;i<700;i++)
+	//{
+    //	rms+=p[i]*p[i];
+    //	m++;
+	//}
+
+	//rms=sqrt(rms/m);
+	//printf("rms is: %f\n", rms);
+
+	gsl_rng_free (r);
+  
+	return 0;
+}
+*/
