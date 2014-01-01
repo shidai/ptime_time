@@ -113,13 +113,22 @@ int main (int argc, char *argv[])
 	double s_temp[nphase];
 	//double tt[nphase];
 	//int n;
-	double temp[nphase*nchn*npol];
 
 	//readfile(argv[1],&n,tt,s);
 	//read_prof(std,1,s_multi,nphase);
-	read_std(std,1,s_multi,nphase,mode,nchn,temp);
+	
+	// check the channel number of template
+	check_std(std,1,mode,nchn);
+
+	read_std(std,1,s_multi,nphase,mode,nchn);
 
 	/*
+	for (i = 0; i < nphase*nchn*npol; i++)
+	{
+		printf ("%d %lf\n", i, s_multi[i]);
+	}
+	exit (0);
+
 	int i;
 	for (i = 0; i < nphase; i++)
 	{

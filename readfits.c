@@ -619,7 +619,6 @@ double read_psrfreq ( char *name )
 int check_std ( char *name, int subint, int mode, int nchn)
 // check if the template has right number of channel, and return the number of channel
 {  
-	int tnchan;
 	// currently, npol should be 1
 	// nchn is the number of channel of the data profile
 	if (mode == 0)
@@ -657,7 +656,7 @@ int check_std ( char *name, int subint, int mode, int nchn)
 			printf( "error while getting the npol number\n" );
 			//fits_get_colnum(fptr, CASEINSEN, "DATA", &colnum, &status);
 		}
-		//printf ("%d\n", nchan);
+		printf ("STD %d\n", nchan);
 		///////////////////////////////////////////////////////////////////////////
 
 		if ( fits_close_file(fptr, &status) )
@@ -667,7 +666,7 @@ int check_std ( char *name, int subint, int mode, int nchn)
 
 		// output the template
 		// check if nchan = nchn
-		if ( nchan = nchn )
+		if ( nchan == nchn )
 		{
 			printf ("The channel number of template = the channel number of data\n");
 		}
@@ -686,7 +685,6 @@ int check_std ( char *name, int subint, int mode, int nchn)
 			}
 		}
 
-		tnchan = nchan;
 
 	}
 	else if (mode == 1)
@@ -697,7 +695,7 @@ int check_std ( char *name, int subint, int mode, int nchn)
 		readTemplate_ptime(name,&tmpl);
 	    printf("Complete reading template\n");
 
-		if ( tmpl->nchan = nchn )
+		if ( tmpl.nchan == nchn )
 		{
 			printf ("The channel number of template = the channel number of data\n");
 		}
@@ -705,7 +703,7 @@ int check_std ( char *name, int subint, int mode, int nchn)
 		{
 			printf ("The channel number of template != the channel number of data\n");
 
-			if ( tmpl->nchan != 1 )
+			if ( tmpl.nchan != 1 )
 			{
 				printf ("Can't not do template matching! The channel number of template should be 1 or equal to that of data.\n");
 				exit (0);
@@ -716,15 +714,15 @@ int check_std ( char *name, int subint, int mode, int nchn)
 			}
 		}
 
-		tnchan = tmpl->nchan;
 
 	}
 
-	return tnchan;
+	return 0;
 }
 
 int read_std ( char *name, int subint, double *profile, int nphase, int mode, int nchn)
 {  
+	int i,j;
 	// currently, npol should be 1
 	// nchn is the number of channel of the data profile
 	if (mode == 0)
@@ -742,12 +740,6 @@ int read_std ( char *name, int subint, double *profile, int nphase, int mode, in
 			printf( "error while openning file\n" );
 		}
 
-		if ( fits_get_num_rows(fptr, &nrows, &status) )           // get the row number
-		{
-			printf( "error while getting the row number\n" );
-		}
-		//printf ("%ld\n", nrows);
-    
 		if ( fits_get_colnum(fptr, CASEINSEN, "DATA", &colnum, &status) )           // get the colnum number
 		{
 			printf( "error while getting the colnum number\n" );
@@ -793,46 +785,24 @@ int read_std ( char *name, int subint, double *profile, int nphase, int mode, in
 		anynull = 0;
 
 		printf ("%d\n", nbin);
-		//fits_read_col(fptr, TDOUBLE, colnum, frow, felem, nelem, &null, profile, &anynull, &status);           // read the column
-		fits_read_col(fptr, TDOUBLE, colnum, frow, felem, nelem, &null, temp, &anynull, &status);           // read the column
+		fits_read_col(fptr, TDOUBLE, colnum, frow, felem, nelem, &null, profile, &anynull, &status);           // read the column
+		//fits_read_col(fptr, TDOUBLE, colnum, frow, felem, nelem, &null, temp, &anynull, &status);           // read the column
 
 		if ( fits_close_file(fptr, &status) )
 		{
 			printf( " error while closing the file\n" );
 		}
 
-		// output the template
-		// check if nchan = nchn
-		int i,j;
-		if ( nchan = nchn )
+		if ( nchan == 1 )
 		{
-			for (i = 0; i < nelem; i++)
+			for (i = 1; i < nchn; i++)
 			{
-				profile[i] = temp[i];
-			}
-		}
-		else 
-		{
-			printf ("The channel number of template != the channel number of data\n");
-
-			if ( nchan != 1 )
-			{
-				printf ("Can't not do template matching! The channel number of template should be 1 or equal to that of data.\n");
-				exit (0);
-			}
-			else 
-			{
-				for (i = 0; i < nchn; i++)
+				for (j = 0; j < nphase; j++)
 				{
-					for (j = 0; j < nphase; j++)
-					{
-						profile[i*nphase+j] = temp[j];
-					}
+					profile[i*nphase+j] = profile[j];
 				}
 			}
 		}
-
-		//free(temp);
 	}
 	else if (mode == 1)
 	{
@@ -844,12 +814,23 @@ int read_std ( char *name, int subint, double *profile, int nphase, int mode, in
 
 		int i,j;
 		double phi;
-		for (i = 0; i < nchn; i++)
+		for (i = 0; i < tmpl.nchan; i++)
 		{
 			for (j = 0; j < nphase; j++)
 			{
 				phi = j/(double)nphase;
 				profile[i*nphase+j] = (double)evaluateTemplateChannel(&tmpl,phi,i,0,0);
+			}
+		}
+
+		if ( tmpl.nchan == 1 )
+		{
+			for (i = 1; i < nchn; i++)
+			{
+				for (j = 0; j < nphase; j++)
+				{
+					profile[i*nphase+j] = profile[j];
+				}
 			}
 		}
 	}
