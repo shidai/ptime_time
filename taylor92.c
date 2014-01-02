@@ -7,6 +7,8 @@
 //#include <gsl/gsl_rng.h>
 //#include <gsl/gsl_randist.h>
 #include "ptime_time.h"
+#include "T2toolkit.h"
+#include "tempo2pred.h"
 //#include "nrutil.h"
 #define ITMAX 100000  // Maximum allowed number of iterations.
 #define EPS 1.0e-16 // Machine double floating-point precision.
@@ -33,7 +35,7 @@ double A7 (double phase, double a_s[][NP], double a_p[][NP], double p_s[][NP], d
 	return A7;
 }
 
-double A7_multi (double phase, double a_s[][NP], double a_p[][NP], double p_s[][NP], double p_p[][NP], int num, int nchn, double *rms)
+double A7_multi (double phase, double a_s[][NP], double a_p[][NP], double p_s[][NP], double p_p[][NP], int num, int nchn, double *rms, double *b)
 // calculate function A7 in Taylor 92, for multi-frequency channel
 //double A7 (int n, double *amp_s, double *amp_p, double *phi_s, double *phi_p, double phase)
 {
@@ -44,7 +46,7 @@ double A7_multi (double phase, double a_s[][NP], double a_p[][NP], double p_s[][
 	{
 		for (j = 0; j < num; j++)
 	    {
-			A7+=((j+1)*a_s[i][j]*a_p[i][j]*sin(p_s[i][j]-p_p[i][j]+(j+1)*phase))/(rms[i]*rms[i]);
+			A7+=(b[i]*(j+1)*a_s[i][j]*a_p[i][j]*sin(p_s[i][j]-p_p[i][j]+(j+1)*phase))/(rms[i]*rms[i]);
 		//printf ("%lf %lf\n", a_s[i], p_s[i]);
 		}
 	}
@@ -73,6 +75,7 @@ double A9 (double phase, double a_s[][NP], double a_p[][NP], double p_s[][NP], d
 	return A9;
 }
 
+/*
 double A9_multi (double phase, double a_s[][NP], double a_p[][NP], double p_s[][NP], double p_p[][NP], int num, int nchn, double *rms)
 {
 // calculate function A9 in Taylor 92, for multi-frequency channel
@@ -93,6 +96,7 @@ double A9_multi (double phase, double a_s[][NP], double a_p[][NP], double p_s[][
 
 	return A9;
 }
+*/
 
 int dft_profiles (int N, double *in, fftw_complex *out)
 // dft of profiles
@@ -149,10 +153,10 @@ int error (double phase, double b, double *errphase, double *errb, double a_s[][
 	return 0;
 }
 
-int error_multi (double phase, double b, double *errphase, double *errb, double a_s[][NP], double a_p[][NP], double p_s[][NP], double p_p[][NP], int num, int nchn, double *rms)
+int error_multi (double phase, double *errphase, double a_s[][NP], double a_p[][NP], double p_s[][NP], double p_p[][NP], int num, int nchn, double *rms, double *bx)
 // calculate the errors of phase, a and b according to Talyor 1992  
 {
-	double s1,s2;
+	double s1;
 	int i,j,n;
 
 	n=0;
@@ -161,14 +165,14 @@ int error_multi (double phase, double b, double *errphase, double *errb, double 
 	{
 	    for (j = 0; j < num; j++)
 	    {
-		    s1+=((j+1)*(j+1)*a_p[i][j]*a_s[i][j]*cos(p_p[i][j]-p_s[i][j]-(j+1)*phase))/(rms[i]*rms[i]);
-		    s2+=(a_s[i][j]*a_s[i][j])/(rms[i]*rms[i]);
+		    s1+=(bx[i]*(j+1)*(j+1)*a_p[i][j]*a_s[i][j]*cos(p_p[i][j]-p_s[i][j]-(j+1)*phase))/(rms[i]*rms[i]);
+		    //s2+=(a_s[i][j]*a_s[i][j])/(rms[i]*rms[i]);
 		n++;
 		}
 	}
 	
-	(*errphase)=1.0/sqrt(2.0*b*s1);
-	(*errb)=1.0/sqrt(2.0*s2);
+	(*errphase)=1.0/sqrt(2.0*s1);
+	//(*errb)=1.0/sqrt(2.0*s2);
 
 	return 0;
 }
@@ -259,11 +263,11 @@ double zbrent(double (*func)(double phase, double a_s[][NP], double a_p[][NP], d
 	return 0.0;
 }
 
-double zbrent_multi(double (*func)(double phase, double a_s[][NP], double a_p[][NP], double p_s[][NP], double p_p[][NP], int num, int nchn, double *rms), double x1, double x2, double tol, double a_s[][NP], double a_p[][NP], double p_s[][NP], double p_p[][NP], int num, int nchn, double *rms)
+double zbrent_multi(double (*func)(double phase, double a_s[][NP], double a_p[][NP], double p_s[][NP], double p_p[][NP], int num, int nchn, double *rms, double *bx), double x1, double x2, double tol, double a_s[][NP], double a_p[][NP], double p_s[][NP], double p_p[][NP], int num, int nchn, double *rms, double *bx)
 {
 	int iter;
 	double a=x1,b=x2,c=x2,d,e,min1,min2;
-	double fa=(*func)(a, a_s, a_p, p_s, p_p, num, nchn, rms),fb=(*func)(b, a_s, a_p, p_s, p_p, num, nchn, rms),fc,p,q,r,s,tol1,xm;
+	double fa=(*func)(a, a_s, a_p, p_s, p_p, num, nchn, rms, bx),fb=(*func)(b, a_s, a_p, p_s, p_p, num, nchn, rms, bx),fc,p,q,r,s,tol1,xm;
 
 	if ((fa > 0.0 && fb > 0.0) || (fa < 0.0 && fb < 0.0))
 		puts ("Root must be bracketed in zbrent\n");
@@ -336,7 +340,7 @@ double zbrent_multi(double (*func)(double phase, double a_s[][NP], double a_p[][
 		else
 			b += SIGN(tol1,xm);
 
-		fb=(*func)(b, a_s, a_p, p_s, p_p, num, nchn, rms);
+		fb=(*func)(b, a_s, a_p, p_s, p_p, num, nchn, rms, bx);
 	}
 
 	puts ("Maximum number of iterations exceeded in zbrent\n");
@@ -434,7 +438,7 @@ double find_peak_value (int n, double *s)
 	return 0;
 }*/
 
-double get_toa (double *s, double *p, double psrfreq, int nphase)
+int get_toa (double *s, double *p, double *phasex, double *errphasex, double psrfreq, int nphase, double *rms, double *bx)
 // calculate the phase shift between template and simulated (or real) data 
 // error of phase can be calculated
 // initial guess of phase shift is added
@@ -523,6 +527,7 @@ double get_toa (double *s, double *p, double psrfreq, int nphase)
     //phase=zbrent(A7, -0.005, 0.005, 1.0e-16);
     b=A9(phase, amp_s, amp_p, phi_s, phi_p, k, nchn);
     //a=A4(b);
+	(*bx) = b;
 
 		
 	//printf ("%.10lf %.10lf\n", phase, A7(phase));
@@ -541,14 +546,16 @@ double get_toa (double *s, double *p, double psrfreq, int nphase)
 	//printf ("errphase %.10lf \n", ((errphase/3.1415926)*5.75/2.0)*1.0e+6);
 	//printf ("errb %.10lf \n", errb);
 	
-	// calculate the rms
-	double rms;
-	cal_rms(phase,b,&rms, amp_s, amp_p, phi_s, phi_p, k,nchn);
+	(*phasex) = phase;
+	(*errphasex) = errphase;
 
-	return rms;
+	// calculate the rms
+	cal_rms(phase,b,rms, amp_s, amp_p, phi_s, phi_p, k,nchn);
+
+	return 0;
 }
 
-int get_toa_multi (double *s, double *p, double *rms, int nchn, double *phasex, double *errphasex, double psrfreq, int nphase)
+int get_toa_multi (double *s, double *p, double *rms, double *bx, int nchn, double *phasex, double *errphasex, double psrfreq, int nphase)
 {
     //int nphase=1024;
 
@@ -604,7 +611,7 @@ int get_toa_multi (double *s, double *p, double *rms, int nchn, double *phasex, 
 		ini_phase=2.0*3.1415926*(nphase-1-d)/nphase;
 		up_phase=ini_phase+step;
 		low_phase=ini_phase-step;
-		while (A7_multi(up_phase, amp_s, amp_p, phi_s, phi_p, k, nchn, rms)*A7_multi(low_phase, amp_s, amp_p, phi_s, phi_p, k, nchn, rms)>0.0)
+		while (A7_multi(up_phase, amp_s, amp_p, phi_s, phi_p, k, nchn, rms, bx)*A7_multi(low_phase, amp_s, amp_p, phi_s, phi_p, k, nchn, rms,bx)>0.0)
 		{
 		    up_phase+=step;
 		    low_phase-=step;
@@ -615,7 +622,7 @@ int get_toa_multi (double *s, double *p, double *rms, int nchn, double *phasex, 
 		ini_phase=-2.0*3.1415926*d/nphase;
 		up_phase=ini_phase+step;
 		low_phase=ini_phase-step;
-		while (A7_multi(up_phase, amp_s, amp_p, phi_s, phi_p, k, nchn, rms)*A7_multi(low_phase, amp_s, amp_p, phi_s, phi_p, k, nchn, rms)>0.0)
+		while (A7_multi(up_phase, amp_s, amp_p, phi_s, phi_p, k, nchn, rms, bx)*A7_multi(low_phase, amp_s, amp_p, phi_s, phi_p, k, nchn, rms, bx)>0.0)
 		{
 		    up_phase+=step;
 		    low_phase-=step;
@@ -623,11 +630,11 @@ int get_toa_multi (double *s, double *p, double *rms, int nchn, double *phasex, 
 	}
 
     // calculate phase shift, a and b
-    double phase,b;
-    phase=zbrent_multi(A7_multi, low_phase, up_phase, 1.0e-16, amp_s, amp_p, phi_s, phi_p, k, nchn, rms);
+    double phase;
+    phase=zbrent_multi(A7_multi, low_phase, up_phase, 1.0e-16, amp_s, amp_p, phi_s, phi_p, k, nchn, rms, bx);
     //phase=zbrent(A7, -1.0, 1.0, 1.0e-16);
     //phase=zbrent(A7, -0.005, 0.005, 1.0e-16);
-    b=A9_multi(phase, amp_s, amp_p, phi_s, phi_p, k, nchn, rms);
+    //b=A9_multi(phase, amp_s, amp_p, phi_s, phi_p, k, nchn, rms);
     //a=A4(b);
 
 		
@@ -639,9 +646,9 @@ int get_toa_multi (double *s, double *p, double *rms, int nchn, double *phasex, 
 		
 	
 	// calculate the errors of phase and b
-    double errphase, errb;	
+    double errphase;	
 
-	error_multi(phase,b,&errphase,&errb, amp_s, amp_p, phi_s, phi_p, k, nchn, rms);
+	error_multi(phase, &errphase, amp_s, amp_p, phi_s, phi_p, k, nchn, rms, bx);
 	printf ("multi-template\n");
 	printf ("%.10lf %.10lf\n", ((phase/3.1415926)/(psrfreq*2.0))*1.0e+6, ((errphase/3.1415926)/(psrfreq*2.0))*1.0e+6);  // microseconds
 	//printf ("%.10lf %.10lf\n", ((phase/3.1415926)*4.569651/2.0)*1.0e+3, ((errphase/3.1415926)*4.569651/2.0)*1.0e+3);  // microseconds
@@ -837,3 +844,133 @@ int simulate (int n, double SNR, double *s, double *p)
 	return 0;
 }
 */
+
+int form_toa_multi (char *name_data, char *name_predict, int subint, int nchn, long int imjd, long int smjd, double offs, double phase, double e_phase, long double *t, long double *e_dt, double *freqout)
+{
+	int h;
+	h = subint;
+
+	long double dt;  
+	double offset;   // offset of each subint
+	long double mjd0;  // the mjd of each subint
+	T2Predictor pred;
+	int ret;
+	double period, weight, frequency;
+	double freq[nchn], wts[nchn];
+
+	// transform phase shift to TOAs
+	// get the freq of the subint
+	read_freq(name_data, h, freq, nchn);
+	read_wts(name_data, h, wts, nchn);
+	frequency = 0.0;
+	weight = 0.0;
+
+	int z;
+	for (z = 0; z < nchn; z++)
+	{
+		frequency += freq[z]*wts[z];
+		weight += wts[z];
+	}
+	frequency = frequency/weight;
+	(*freqout) = frequency;
+    printf ("Frequency is %lf\n", frequency);
+
+	// get the period
+    print_t2pred(name_predict);   // output t2pred.dat
+
+	T2Predictor_Init(&pred);  // prepare the predictor
+	if (ret=T2Predictor_Read(&pred,(char *)"t2pred.dat"))
+    {
+		printf("Error: unable to read predictor\n");
+		exit(1);
+	}
+
+	// get the offset of each subint
+	offset = read_offs(name_data, h);
+
+	// get the period at mjd0
+	mjd0 = (long double)(imjd) + ((long double)(smjd) + (long double)(offs) + (long double)(offset))/86400.0L;
+	printf ("imjd is %ld \n", imjd);
+	printf ("mjd0 is %.15Lf \n", mjd0);
+
+	period = 1.0/T2Predictor_GetFrequency(&pred,mjd0,frequency);
+    printf ("Period is %.15lf\n", period);
+	
+	// transform phase shift to time shift
+    //dt = (phase/PI)*period/2.0;
+    //e_dt = (e_phase/PI)*period/2.0;
+    dt = ((long double)(phase)/PI)*((long double)(period))/2.0L;
+    (*e_dt) = ((long double)(e_phase)/PI)*((long double)(period))/2.0L;
+    printf ("dt is %.10Lf +/- %.10Lf\n", dt, e_dt);
+
+	// calculate the TOA
+    (*t) = (long double)(imjd) + ((long double)(smjd) + (long double)(offs) - (long double)(dt) + (long double)(offset))/86400.0L;
+    //t = imjd;
+		
+    printf ("offset is %lf\n", offset);
+	//fprintf (fp, "%s  %lf  %.15Lf  %Lf  7\n", fname, frequency, t, e_dt*1e+6);
+
+	return 0;
+}
+
+int form_toa (char *name_data, char *name_predict, int subint, int chn, int nchn, long int imjd, long int smjd, double offs, double phase, double e_phase, long double *t, long double *e_dt, double *freqout)
+// chn is the channel to form toa
+// nchn is the total number of subchn
+{
+	int h;
+	h = subint;
+
+	long double dt;  
+	double offset;   // offset of each subint
+	long double mjd0;  // the mjd of each subint
+	T2Predictor pred;
+	int ret;
+	double period, frequency;
+	double freq[nchn];
+
+	// transform phase shift to TOAs
+	// get the freq of the subint
+	read_freq(name_data, h, freq, nchn);
+
+	frequency = freq[chn];
+	(*freqout) = frequency;
+    printf ("Frequency is %lf\n", frequency);
+
+	// get the period
+    print_t2pred(name_predict);   // output t2pred.dat
+
+	T2Predictor_Init(&pred);  // prepare the predictor
+	if (ret=T2Predictor_Read(&pred,(char *)"t2pred.dat"))
+    {
+		printf("Error: unable to read predictor\n");
+		exit(1);
+	}
+
+	// get the offset of each subint
+	offset = read_offs(name_data, h);
+
+	// get the period at mjd0
+	mjd0 = (long double)(imjd) + ((long double)(smjd) + (long double)(offs) + (long double)(offset))/86400.0L;
+	printf ("imjd is %ld \n", imjd);
+	printf ("mjd0 is %.15Lf \n", mjd0);
+
+	period = 1.0/T2Predictor_GetFrequency(&pred,mjd0,frequency);
+    printf ("Period is %.15lf\n", period);
+	
+	// transform phase shift to time shift
+    //dt = (phase/PI)*period/2.0;
+    //e_dt = (e_phase/PI)*period/2.0;
+    dt = ((long double)(phase)/PI)*((long double)(period))/2.0L;
+    (*e_dt) = ((long double)(e_phase)/PI)*((long double)(period))/2.0L;
+    printf ("dt is %.10Lf +/- %.10Lf\n", dt, e_dt);
+
+	// calculate the TOA
+    (*t) = (long double)(imjd) + ((long double)(smjd) + (long double)(offs) - (long double)(dt) + (long double)(offset))/86400.0L;
+    //t = imjd;
+		
+    printf ("offset is %lf\n", offset);
+	//fprintf (fp, "%s  %lf  %.15Lf  %Lf  7\n", fname, frequency, t, e_dt*1e+6);
+
+	return 0;
+}
+

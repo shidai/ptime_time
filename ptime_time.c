@@ -13,13 +13,14 @@
 
 int main (int argc, char *argv[])
 {
-	int h,i,j,z;
+	int h,i,j;
 
-	if (argc != 7)
+	if (argc != 8)
 	{
-		printf ("Usage: ptime_time -f fname -std tname (-pt tname) -o oname\n"
-	            "Derive the TOAs "
-	            "fname: data file; tname: templates; oname: output .tim; -std: standard template format; -pt: ptime template;\n");
+		printf ("Usage: ptime_time -f fname -std tname (-pt tname) -o oname -single (-multi)\n"
+	            "Derive the TOAs\n"
+	            "fname: data file; tname: templates; oname: output .tim; -std: standard template format; -pt: ptime template;\n"
+				"-single: do freq-dependent matching and get one TOA; -multi: do freq-dependent matching and get TOAs for each channel.\n");
 	    exit (0);
 	}
 
@@ -29,6 +30,7 @@ int main (int argc, char *argv[])
 	char tname[128];   // name of template
 	char oname[128];   // name of output .tim
 	int mode; // to distinguish different type of templates
+	int tmode; // to distinguish different type of algorithm
 
 	for (i=0;i<argc;i++)
     {
@@ -52,6 +54,14 @@ int main (int argc, char *argv[])
 		else if (strcmp(argv[i],"-o")==0)
 		{
 			strcpy(oname,argv[++i]);
+		}
+		else if (strcmp(argv[i],"-single")==0)
+		{
+			tmode = 0; // do freq-dependent matching, and get one TOA
+		}
+		else if (strcmp(argv[i],"-multi")==0)
+		{
+			tmode = 1; // do freq-dependent matching, and get TOA for each channel
 		}
     }
 
@@ -153,15 +163,12 @@ int main (int argc, char *argv[])
     //double SNR; 
 
 	double rms[nchn];  // rms for each profile
+	double b[nchn];  // b for each profile
 	double phase, e_phase;
-	long double dt, e_dt;  
+	long double e_dt;  
 	long double t;     // TOA
-	double offset;   // offset of each subint
-	long double mjd0;  // the mjd of each subint
-	T2Predictor pred;
-	int ret;
-	double period, frequency, weight;
-	double freq[nchn], wts[nchn];
+	double frequency;
+
 	for (h = 1; h <= nsub; h++)
 	{
 	    //////////////////////////////////////////////////////////////////////////
@@ -184,67 +191,30 @@ int main (int argc, char *argv[])
 			}
 
 			// calculate toa, rms for each profile
-			rms[i] = get_toa(s_temp, p_temp, psrfreq, nphase);
+			get_toa(s_temp, p_temp, &phase, &e_phase, psrfreq, nphase, &rms[i], &b[i]);
+
+			// if tmode == 1, get TOA for each channel, and transform phase shifts to MJD TOAs
+			if ( tmode == 1)
+			{
+				form_toa(name_data, name_predict, h, i, nchn, imjd, smjd, offs, phase, e_phase, &t, &e_dt, &frequency);
+				fprintf (fp, "%s  %lf  %.15Lf  %Lf  7 -f c%d\n", fname, frequency, t, e_dt*1e+6, i+1);
+			}
 		}
 
-		// do template matching, get the phase shift
-		get_toa_multi(s_multi, p_multi, rms, nchn, &phase, &e_phase, psrfreq, nphase);
-
-		////////////////////////////////////////////////////////////////////////////////////////
-
-		// transform phase shift to TOAs
-		// get the freq of the subint
-		read_freq(name_data, h, freq, nchn);
-		read_wts(name_data, h, wts, nchn);
-		frequency = 0.0;
-		weight = 0.0;
-		for (z = 0; z < nchn; z++)
+		// if tmode == 0, do freq-dependent template matching, get one phase shift
+		if ( tmode == 0)
 		{
-			frequency += freq[z]*wts[z];
-			weight += wts[z];
+			get_toa_multi(s_multi, p_multi, rms, b, nchn, &phase, &e_phase, psrfreq, nphase);
+
+			// transform phase shifts to MJD TOAs
+			form_toa_multi(name_data, name_predict, h, nchn, imjd, smjd, offs, phase, e_phase, &t, &e_dt, &frequency);
+
+			fprintf (fp, "%s  %lf  %.15Lf  %Lf  7\n", fname, frequency, t, e_dt*1e+6);
 		}
-		frequency = frequency/weight;
-	    printf ("Frequency is %lf\n", frequency);
-
-		// get the period
-        print_t2pred(name_predict);   // output t2pred.dat
-
-		T2Predictor_Init(&pred);  // prepare the predictor
-		if (ret=T2Predictor_Read(&pred,(char *)"t2pred.dat"))
-	    {
-			printf("Error: unable to read predictor\n");
-			exit(1);
-		}
-
-		// get the offset of each subint
-		offset = read_offs(name_data, h);
-
-		// get the period at mjd0
-		mjd0 = (long double)(imjd) + ((long double)(smjd) + (long double)(offs) + (long double)(offset))/86400.0L;
-		printf ("imjd is %ld \n", imjd);
-		printf ("mjd0 is %.15Lf \n", mjd0);
-
-		period = 1.0/T2Predictor_GetFrequency(&pred,mjd0,frequency);
-	    printf ("Period is %.15lf\n", period);
-	
-		// transform phase shift to time shift
-        //dt = (phase/PI)*period/2.0;
-        //e_dt = (e_phase/PI)*period/2.0;
-        dt = ((long double)(phase)/PI)*((long double)(period))/2.0L;
-        e_dt = ((long double)(e_phase)/PI)*((long double)(period))/2.0L;
-	    printf ("dt is %.10Lf +/- %.10Lf\n", dt, e_dt);
-
-		// calculate the TOA
-        t = (long double)(imjd) + ((long double)(smjd) + (long double)(offs) - (long double)(dt) + (long double)(offset))/86400.0L;
-        //t = imjd;
-		
-	    printf ("offset is %lf\n", offset);
-		fprintf (fp, "%s  %lf  %.15Lf  %Lf  7\n", fname, frequency, t, e_dt*1e+6);
 	}
 
     if (fclose (fp) != 0)
 		fprintf (stderr, "Error closing\n");
-
 
 	return 0;
 }
