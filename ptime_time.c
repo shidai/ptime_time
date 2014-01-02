@@ -13,8 +13,9 @@
 
 int main (int argc, char *argv[])
 {
-	int h,i,j;
+	int h,i,j,k;
 
+	/*
 	if (argc != 8)
 	{
 		printf ("Usage: ptime_time -f fname -std tname (-pt tname) -o oname -single (-multi)\n"
@@ -23,6 +24,7 @@ int main (int argc, char *argv[])
 				"-single: do freq-dependent matching and get one TOA; -multi: do freq-dependent matching and get TOAs for each channel.\n");
 	    exit (0);
 	}
+	*/
 
 
 	//////////////////////////////////////////////////////
@@ -32,11 +34,18 @@ int main (int argc, char *argv[])
 	int mode; // to distinguish different type of templates
 	int tmode; // to distinguish different type of algorithm
 
+	int index, n;
 	for (i=0;i<argc;i++)
     {
 		if (strcmp(argv[i],"-f") == 0)
 		{
-			strcpy(fname,argv[++i]);
+            index = i + 1;
+			n = 0;
+			while ( (index + n) < argc && strcmp(argv[index+n],"-std") != 0 && strcmp(argv[index+n],"-pt") != 0 && strcmp(argv[index+n],"-o") != 0 && strcmp(argv[index+n],"-single") != 0)
+			{
+				n++;
+		    }
+			//strcpy(fname,argv[++i]);
 		}
 		else if (strcmp(argv[i],"-std")==0)
 		{
@@ -65,50 +74,14 @@ int main (int argc, char *argv[])
 		}
     }
 
-	// name of different extension
+	// name of different extension of data files
 	char name_data[50]; 
 	char name_predict[50]; 
 	char name_psrparam[50]; 
 
-	strcpy(name_data,fname);
-	strcpy(name_predict,fname);
-	strcpy(name_psrparam,fname);
-
 	char data[] = "[SUBINT]";
 	char predict[] = "[T2PREDICT]";
 	char psrparam[] = "[PSRPARAM]";
-
-	strcat(name_data, data);
-	strcat(name_predict, predict);
-	strcat(name_psrparam, psrparam);
-
-	//puts(name_data);
-	//puts(name_predict);
-	////////////////////////////////////////////////////
-	
-	double psrfreq;
-	psrfreq = read_psrfreq(name_psrparam);
-	printf ("%.15lf\n", psrfreq);
-	
-	////////////////////////////////////////////////
-	long int imjd, smjd;
-	double offs;
-    int nphase;
-	int nchn;
-	int nsub;
-	int npol;
-	
-	imjd = stt_imjd(fname);
-	smjd = stt_smjd(fname);
-	offs = stt_offs(fname);
-
-    nchn = get_nchan(name_data);	
-    npol = get_npol(name_data);	
-    nsub = get_subint(name_data);	
-    nphase = get_nphase(name_data);	
-
-	//printf ("%d\n", nchn);
-	////////////////////////////////////////////////
 
 	// read a std
 	char std[50];
@@ -117,36 +90,9 @@ int main (int argc, char *argv[])
 	{
 		strcat(std, data);
 	}
-	//puts(argv[1]);
-	//puts(argv[2]);
-	double s_multi[nphase*nchn*npol];
-	double s_temp[nphase];
-	//double tt[nphase];
-	//int n;
 
-	//readfile(argv[1],&n,tt,s);
-	//read_prof(std,1,s_multi,nphase);
-	
-	// check the channel number of template
-	check_std(std,1,mode,nchn);
-
-	read_std(std,1,s_multi,nphase,mode,nchn);
-
-	/*
-	for (i = 0; i < nphase*nchn*npol; i++)
-	{
-		printf ("%d %lf\n", i, s_multi[i]);
-	}
-	exit (0);
-
-	int i;
-	for (i = 0; i < nphase; i++)
-	{
-	    printf ("%lf\n", s[i]);
-	}
-	//puts(argv[1]);
-	*/
 	/////////////////////////////////////////////////////////////////////////////////
+	// open file to write toa 
 	FILE *fp;
 	if ((fp = fopen(oname, "w+")) == NULL)
 	{
@@ -156,60 +102,116 @@ int main (int argc, char *argv[])
 	
 	fprintf (fp, "FORMAT 1\n");
 
-	////////////////////////////////////////////////////////////////////////////////
-
-	double p_multi[nchn*npol*nphase];
-	double p_temp[nphase];
-    //double SNR; 
-
-	double rms[nchn];  // rms for each profile
-	double b[nchn];  // b for each profile
-	double phase, e_phase;
-	long double e_dt;  
-	long double t;     // TOA
-	double frequency;
-
-	for (h = 1; h <= nsub; h++)
+	/////////////////////////////////////////////////////////////////////////////////
+	// start to deal with different data file
+	for (k = index; k < index + n; k++)
 	{
-	    //////////////////////////////////////////////////////////////////////////
-	    // simulate data
+		// get the data file name
+		strcpy(fname,argv[k]);
 
-		//SNR = 500.0 + 200.0*i;
-	    //simulate(n,SNR,s,p_temp);
+		// name of different extension
+		strcpy(name_data,fname);
+		strcpy(name_predict,fname);
+		strcpy(name_psrparam,fname);
 
-	    read_prof(name_data,h,p_multi,nphase);
-	    //readfile(argv[2],&n,tt,p_multi);
+		strcat(name_data, data);
+		strcat(name_predict, predict);
+		strcat(name_psrparam, psrparam);
 
-		for (i = 0; i < nchn; i++)
+		////////////////////////////////////////////////////
+	
+		double psrfreq;
+		psrfreq = read_psrfreq(name_psrparam);
+		printf ("%.15lf\n", psrfreq);
+	
+		////////////////////////////////////////////////
+		long int imjd, smjd;
+		double offs;
+		int nphase;
+		int nchn;
+		int nsub;
+		int npol;
+	
+		imjd = stt_imjd(fname);
+		smjd = stt_smjd(fname);
+		offs = stt_offs(fname);
+
+		nchn = get_nchan(name_data);	
+		npol = get_npol(name_data);	
+		nsub = get_subint(name_data);	
+		nphase = get_nphase(name_data);	
+
+		//printf ("%d\n", nchn);
+		////////////////////////////////////////////////
+
+		// read a std
+		double s_multi[nphase*nchn*npol];
+		double s_temp[nphase];
+
+		//readfile(argv[1],&n,tt,s);
+		//read_prof(std,1,s_multi,nphase);
+	
+		// check the channel number of template
+		check_std(std,1,mode,nchn);
+
+		read_std(std,1,s_multi,nphase,mode,nchn);
+
+		////////////////////////////////////////////////////////////////////////////////
+
+		double p_multi[nchn*npol*nphase];
+		double p_temp[nphase];
+
+		double rms[nchn];  // rms for each profile
+		double b[nchn];  // b for each profile
+		double phase, e_phase;
+		long double e_dt;  
+		long double t;     // TOA
+		double frequency;
+
+		// start to derive toa from different subint
+		for (h = 1; h <= nsub; h++)
 		{
-			for (j = 0; j < nphase; j++)
+			// simulate data
+
+			//SNR = 500.0 + 200.0*i;
+			//simulate(n,SNR,s,p_temp);
+
+			// read profiles from data file
+			read_prof(name_data,h,p_multi,nphase);
+			//readfile(argv[2],&n,tt,p_multi);
+
+			// start to derive toas for different channels
+			for (i = 0; i < nchn; i++)
 			{
-				//printf ("%lf %lf\n", p_multi[j], s[j]);
-				//s_multi[i*nphase + j] = s[j];
-				p_temp[j] = p_multi[i*nphase + j];
-				s_temp[j] = s_multi[i*nphase + j];
+				for (j = 0; j < nphase; j++)
+				{
+					//printf ("%lf %lf\n", p_multi[j], s[j]);
+					//s_multi[i*nphase + j] = s[j];
+					p_temp[j] = p_multi[i*nphase + j];
+					s_temp[j] = s_multi[i*nphase + j];
+				}
+
+				// calculate toa, rms for each channel
+				get_toa(s_temp, p_temp, &phase, &e_phase, psrfreq, nphase, &rms[i], &b[i]);
+
+				// if tmode == 1, get TOA for each channel, and transform phase shifts to MJD TOAs
+				if ( tmode == 1)
+				{
+					form_toa(name_data, name_predict, h, i, nchn, imjd, smjd, offs, phase, e_phase, &t, &e_dt, &frequency);
+					fprintf (fp, "%s  %lf  %.15Lf  %Lf  7 -f c%d\n", fname, frequency, t, e_dt*1e+6, i+1);
+				}
 			}
 
-			// calculate toa, rms for each profile
-			get_toa(s_temp, p_temp, &phase, &e_phase, psrfreq, nphase, &rms[i], &b[i]);
-
-			// if tmode == 1, get TOA for each channel, and transform phase shifts to MJD TOAs
-			if ( tmode == 1)
+			// if tmode == 0, do freq-dependent template matching, get one phase shift
+			if ( tmode == 0)
 			{
-				form_toa(name_data, name_predict, h, i, nchn, imjd, smjd, offs, phase, e_phase, &t, &e_dt, &frequency);
-				fprintf (fp, "%s  %lf  %.15Lf  %Lf  7 -f c%d\n", fname, frequency, t, e_dt*1e+6, i+1);
+				get_toa_multi(s_multi, p_multi, rms, b, nchn, &phase, &e_phase, psrfreq, nphase);
+
+				// transform phase shifts to MJD TOAs
+				form_toa_multi(name_data, name_predict, h, nchn, imjd, smjd, offs, phase, e_phase, &t, &e_dt, &frequency);
+
+				fprintf (fp, "%s  %lf  %.15Lf  %Lf  7\n", fname, frequency, t, e_dt*1e+6);
 			}
-		}
-
-		// if tmode == 0, do freq-dependent template matching, get one phase shift
-		if ( tmode == 0)
-		{
-			get_toa_multi(s_multi, p_multi, rms, b, nchn, &phase, &e_phase, psrfreq, nphase);
-
-			// transform phase shifts to MJD TOAs
-			form_toa_multi(name_data, name_predict, h, nchn, imjd, smjd, offs, phase, e_phase, &t, &e_dt, &frequency);
-
-			fprintf (fp, "%s  %lf  %.15Lf  %Lf  7\n", fname, frequency, t, e_dt*1e+6);
 		}
 	}
 
