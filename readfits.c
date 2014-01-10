@@ -616,7 +616,7 @@ double read_psrfreq ( char *name )
 	return psrfreq;
 }
 
-int check_std ( char *name, int subint, int mode, int nchn)
+int check_std ( char *name, int subint, int mode, int nchn, int nphase)
 // check if the template has right number of channel, and return the number of channel
 {  
 	// currently, npol should be 1
@@ -659,11 +659,29 @@ int check_std ( char *name, int subint, int mode, int nchn)
 		printf ("STD %d\n", nchan);
 		///////////////////////////////////////////////////////////////////////////
 
+        //////////////////////////////////////////////////////////////////////////
+		int nbin;
+		if ( fits_read_key(fptr, TINT, (char *)"NBIN", &nbin, NULL, &status) )           // get the row number
+		{
+			printf( "error while getting the nbin number\n" );
+		   //fits_get_colnum(fptr, CASEINSEN, "DATA", &colnum, &status);
+		}
+		printf ("number of nbin of std: %d\n", nbin);
+		
+	    ///////////////////////////////////////////////////////////////////////////
+		//
 		if ( fits_close_file(fptr, &status) )
 		{
 			printf( " error while closing the file\n" );
 		}
 
+		// check if nbin = nphase
+		if ( nbin != nphase )
+		{
+			printf ("The phase bin number of template != the phase bin number of data\n");
+	        exit (0);
+	    }
+				
 		// output the template
 		// check if nchan = nchn
 		if ( nchan == nchn )

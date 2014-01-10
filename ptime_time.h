@@ -21,7 +21,7 @@ int get_nphase ( char *name );
 int get_subint ( char *name );
 
 
-int check_std ( char *name, int subint, int mode, int nchn);
+int check_std ( char *name, int subint, int mode, int nchn, int nphase);
 int read_std ( char *name, int subint, double *profile, int nphase, int mode, int nchn);
 int read_prof ( char *name, int subint, double *profile, int phase );
 

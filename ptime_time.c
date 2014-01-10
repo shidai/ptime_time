@@ -152,7 +152,7 @@ int main (int argc, char *argv[])
 		//read_prof(std,1,s_multi,nphase);
 	
 		// check the channel number of template
-		check_std(std,1,mode,nchn);
+		check_std(std,1,mode,nchn,nphase);
 
 		read_std(std,1,s_multi,nphase,mode,nchn);
 
