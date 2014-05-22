@@ -555,7 +555,7 @@ double read_psrfreq ( char *name )
 	char F0[100];
 
 	int colnum = 1;
-    int frow = 6;
+    int frow = 7;
     int	felem = 1;
     int nelem = 1;
     int	anynull = 0;

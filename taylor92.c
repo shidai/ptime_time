@@ -130,6 +130,8 @@ int error (double phase, double b, double *errphase, double *errb, double a_s[][
 	int i,j,n;
 
 	gk=0.0;
+	s1=0.0;
+	s2=0.0;
 	n=0;
 
 	for (i = 0; i < nchn; i++)
@@ -147,8 +149,8 @@ int error (double phase, double b, double *errphase, double *errb, double a_s[][
 	
 	rms=sqrt(gk/n);
 
-	(*errphase)=rms/sqrt(2.0*b*s1);
-	(*errb)=rms/sqrt(2.0*s2);
+	(*errphase)=rms/sqrt(2.0*fabs(b*s1));
+	(*errb)=rms/sqrt(2.0*fabs(s2));
 
 	return 0;
 }
@@ -160,6 +162,7 @@ int error_multi (double phase, double *errphase, double a_s[][NP], double a_p[][
 	int i,j,n;
 
 	n=0;
+	s1=0.0;
 
 	for (i = 0; i < nchn; i++)
 	{
@@ -171,7 +174,7 @@ int error_multi (double phase, double *errphase, double a_s[][NP], double a_p[][
 		}
 	}
 	
-	(*errphase)=1.0/sqrt(2.0*s1);
+	(*errphase)=1.0/sqrt(2.0*fabs(s1));
 	//(*errb)=1.0/sqrt(2.0*s2);
 
 	return 0;
