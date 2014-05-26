@@ -39,7 +39,6 @@ int dft_profiles (int N, double *in, fftw_complex *out);
 
 //int simulate (int n, double SNR, double *s, double *p);
 
-double find_peak_value (int n, double *s);
 
 int preA7 (int *k, double amp_s[][NP], double amp_p[][NP], double phi_s[][NP], double phi_p[][NP], double *s, double *p, int nphase, int nchn);
 
@@ -56,7 +55,6 @@ double zbrent(double (*func)(double phase, double a_s[][NP], double a_p[][NP], d
 
 double zbrent_multi(double (*func)(double phase, double a_s[][NP], double a_p[][NP], double p_s[][NP], double p_p[][NP], int num, int nchn, double *rms, double *bx), double x1, double x2, double tol, double a_s[][NP], double a_p[][NP], double p_s[][NP], double p_p[][NP], int num, int nchn, double *rms, double *bx);
 
-int find_peak (int n, double *s, int *position);
 
 //int error (double phase, double b, double *errphase, double *errb);
 int error (double phase, double b, double *errphase, double *errb, double a_s[][NP], double a_p[][NP], double p_s[][NP], double p_p[][NP], int num, int nchn);
@@ -74,3 +72,20 @@ int get_toa_multi (double *s, double *p, double *rms, double *bx, int nchn, doub
 int form_toa_multi (char *name_data, char *name_predict, int subint, int nchn, long int imjd, long int smjd, double offs, double phase, double e_phase, long double *t, long double *e_dt, double *frequency);
 
 int form_toa (char *name_data, char *name_predict, int subint, int chn, int nchn, long int imjd, long int smjd, double offs, double phase, double e_phase, long double *t, long double *e_dt, double *frequency);
+
+// initial guess
+int find_peak (int n, double *s, int *position);
+
+double find_peak_value (int n, double *s);
+
+int corr (double *s, double *p, int nphase);
+
+int def_off_pulse (int nphase, double *in, double frac_off);
+
+int off_pulse (int nphase, int index, double *in, double *out, double frac_off);
+
+int remove_baseline (double *in, int index, double frac_off, int n, double *out);
+
+int pre_diff (double *s, int nphase, int index, double frac_off, double *s_out);
+
+int InitialGuess (double *s, double *p, int nphase);

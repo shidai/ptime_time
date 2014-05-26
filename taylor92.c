@@ -351,6 +351,7 @@ double zbrent_multi(double (*func)(double phase, double a_s[][NP], double a_p[][
 	return 0.0;
 }
 
+/*
 int find_peak (int n, double *s, int *position)
 {
 	int i;
@@ -384,23 +385,6 @@ int find_peak (int n, double *s, int *position)
 	return 0;
 }
 
-/*int main (void)
-{
-	int i; 
-	double s[1024];
-
-	double x=0.0;
-	for (i=0;i<1024;i++)
-	{
-		x+=1.0;
-		s[i]=x;
-	}
-
-	printf ("%lf\n", find_peak(1024,s));
-
-	return 0;
-}*/
-
 double find_peak_value (int n, double *s)
 {
 	int i;
@@ -423,23 +407,7 @@ double find_peak_value (int n, double *s)
 
 	return temp[n-1];
 }
-
-/*int main (void)
-{
-	int i; 
-	double s[1024];
-
-	double x=0.0;
-	for (i=0;i<1024;i++)
-	{
-		x+=1.0;
-		s[i]=x;
-	}
-
-	printf ("%lf\n", find_peak(1024,s));
-
-	return 0;
-}*/
+*/
 
 int get_toa (double *s, double *p, double *phasex, double *errphasex, double psrfreq, int nphase, double *rms, double *bx)
 // calculate the phase shift between template and simulated (or real) data 
@@ -485,7 +453,7 @@ int get_toa (double *s, double *p, double *phasex, double *errphasex, double psr
 	//printf ("%d\n", nchn);
 	
 	// initial guess of the phase
-    int peak_s, peak_p;	
+	int peak_s, peak_p;	
 
 	find_peak(nphase,s,&peak_s);
 	find_peak(nphase,p,&peak_p);
@@ -494,7 +462,8 @@ int get_toa (double *s, double *p, double *phasex, double *errphasex, double psr
 	double step;
 	double ini_phase,up_phase,low_phase;
 
-	d=peak_p-peak_s;
+	d = InitialGuess (s, p, nphase);
+	//d=peak_p-peak_s;
 	step=2.0*3.1415926/(10.0*nphase);
 	//step=2.0*3.1415926/10240.0;
 
@@ -596,7 +565,7 @@ int get_toa_multi (double *s, double *p, double *rms, double *bx, int nchn, doub
 	preA7(&k, amp_s, amp_p, phi_s, phi_p, s, p, nphase, nchn);
 	
 	// initial guess of the phase
-    int peak_s, peak_p;	
+  int peak_s, peak_p;	
 
 	find_peak(nphase,s,&peak_s);
 	find_peak(nphase,p,&peak_p);
@@ -605,7 +574,8 @@ int get_toa_multi (double *s, double *p, double *rms, double *bx, int nchn, doub
 	double step;
 	double ini_phase,up_phase,low_phase;
 
-	d=peak_p-peak_s;
+	d = InitialGuess (s, p, nphase);
+	//d=peak_p-peak_s;
 	step=2.0*3.1415926/(10.0*nphase);
 	//step=2.0*3.1415926/10240.0;
 
@@ -975,5 +945,259 @@ int form_toa (char *name_data, char *name_predict, int subint, int chn, int nchn
 	//fprintf (fp, "%s  %lf  %.15Lf  %Lf  7\n", fname, frequency, t, e_dt*1e+6);
 
 	return 0;
+}
+
+int find_peak (int n, double *s, int *position)
+{
+	int i;
+	double temp[n];
+	double peak;
+
+	for (i = 0; i < n; i++)
+	{
+		temp[i] = s[i];
+	}
+
+	double a, b, c;
+	for (i = 0; i < n-1; i++)
+	{
+		//a = fabs(temp[i]);
+		//b = fabs(temp[i+1]);
+		a = temp[i];
+		b = temp[i+1];
+		c = (a >= b ? a : b);
+
+		temp[i+1] = c;
+	}
+	peak = temp[n-1];
+
+	for (i = 0; i < n; i++)
+	{
+		if (fabs(peak-fabs(s[i])) < 1.0e-3)
+		{
+			(*position) = i;
+		}
+	}
+
+	return 0;
+}
+
+double find_peak_value (int n, double *s)
+{
+	int i;
+	double temp[n];
+
+	for (i = 0; i < n; i++)
+	{
+		temp[i] = s[i];
+	}
+
+	double a, b, c;
+	for (i = 0; i < n-1; i++)
+	{
+		a = temp[i];
+		b = temp[i+1];
+		//a = fabs(temp[i]);
+		//b = fabs(temp[i+1]);
+		c = (fabs(a) >= fabs(b) ? a : b);
+
+		temp[i+1] = c;
+	}
+
+	return temp[n-1];
+}
+
+int corr (double *s, double *p, int nphase)
+{
+	/*
+	FILE *fp1, *fp2;
+
+	if ((fp1 = fopen(argv[1], "r")) == NULL)
+	{
+		fprintf (stdout, "Can't open file\n");
+		exit(1);
+	}
+
+	if ((fp2 = fopen(argv[2], "r")) == NULL)
+	{
+		fprintf (stdout, "Can't open file\n");
+		exit(1);
+	}
+
+	float x1[1024], x2[1024];
+	int i = 0;
+	while (fscanf (fp1, "%f", &x1[i]) == 1)
+	{
+		i++;
+	}
+
+	i = 0;
+	while (fscanf (fp2, "%f", &x2[i]) == 1)
+	{
+		i++;
+	}
+	*/
+
+	double r[nphase];
+	int i, j;
+	for (j = 0; j < nphase; j++)
+	{
+		r[j] = 0.0;
+		for (i = 0; i < nphase; i++)
+		{
+			if ((i+j) > (nphase-1))
+			{
+				r[j] += p[i]*s[i+j-(nphase-1)];
+			}
+			else
+			{
+				r[j] += p[i]*s[i+j];
+			}
+			//printf ("%f %f\n", x1[i], x2[i]);
+		}
+	}
+
+	int shift;
+	find_peak (nphase, r,  &shift);
+	/*
+	for (j = 0; j < 1024; j++)
+	{
+		printf ("%f\n", r[j]);
+	}
+	*/
+
+	return -shift;
+}
+
+int def_off_pulse (int nphase, double *in, double frac_off)
+// define the off pulse region based on I, return the starting index of off pulse region
+// using frac_off to calculate the off pulse region
+{
+	int n = nphase;
+	int num_off = (int)(n*frac_off);
+	int i,j;
+	double small;
+	double temp;
+	int index = 0;
+
+	for (i = 0; i < n; i++)
+	{
+		if (i == 0)
+		{
+			small = 0.0;
+			for(j = 0; j < num_off; j++)
+			{
+				small += (in[j])*(in[j]);
+			}
+			small = sqrt(small/num_off);
+		}
+			
+		temp = 0.0;
+		for(j = 0; j < num_off; j++)
+		{
+			if ((i+j) > n-1)
+			{
+				temp += (in[(i+j)-(n-1)])*(in[(i+j)-(n-1)]);
+			}
+			else 
+			{
+				temp += (in[i+j])*(in[i+j]);
+			}
+		}
+		temp = sqrt(temp/num_off);
+
+		small = (temp <= small ? temp : small);
+		index = (temp <= small ? i : index);
+		//printf ("%d %lf %lf\n", index, small, ave);
+	}
+
+	return index;
+}
+
+int off_pulse (int nphase, int index, double *in, double *out, double frac_off)
+// get the off_pulse region
+{
+	int n = nphase;
+	int num_off = (int)(n*frac_off);
+	int i;
+
+	for (i = 0; i < num_off; i++)
+	{
+		if ((index+i) > n-1)
+		{
+			out[i] = in[(index+i)-(n-1)];
+		}
+		else 
+		{
+			out[i] = in[index+i];
+		}
+	}
+
+	return 0;
+}
+
+int remove_baseline (double *in, int index, double frac_off, int n, double *out)
+{
+	// define the off_pulse range, frac_off is the fraction of the phase
+	// index is the starting point of the off_pulse range
+	int num_off = (int)(n*frac_off);
+	double off_0[num_off];
+
+	off_pulse (n, index, in, off_0, frac_off);
+
+	int i;
+	double baseline = 0.0;
+    for (i = 0; i < num_off; i++)
+    {
+        baseline += off_0[i];
+        //average_s += s_off[i];
+    }
+	baseline = baseline/num_off;
+
+    //printf ("the baseline of std is: %lf \n", baseline);
+    //printf ("average is: %lf %lf\n", average, average_s);
+
+	for (i = 0; i < n; i++)
+	{
+		out[i] = (in[i]-baseline);
+		//s_norm[i] = (s[i]-baseline)/(s_peak-baseline);
+	}
+	
+	return 0;
+}
+
+int pre_diff (double *s, int nphase, int index, double frac_off, double *s_out)
+{
+	int n = nphase;
+	
+	// remove the baseline
+	remove_baseline (s, index, frac_off, n, s_out);
+
+    return 0;
+}
+
+
+int InitialGuess (double *s, double *p, int nphase) 
+{
+	int index;
+	double frac_off = 0.05;  // set to be 0.1
+
+	// remove the baseline of template
+	index = def_off_pulse (nphase, s, frac_off);
+
+	double s_out[nphase];
+	pre_diff (s, nphase, index, frac_off, s_out);
+
+	// remove the baseline of profile
+	index = def_off_pulse (nphase, p, frac_off);
+
+	double p_out[nphase];
+	pre_diff (p, nphase, index, frac_off, p_out);
+
+	// Guess the phase shift
+	int d;
+	d = corr (s_out, p_out, nphase);
+
+	return d;
 }
 
