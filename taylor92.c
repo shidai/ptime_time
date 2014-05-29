@@ -35,6 +35,7 @@ double A7 (double phase, double a_s[][NP], double a_p[][NP], double p_s[][NP], d
 	return A7;
 }
 
+/*
 double A7_multi (double phase, double a_s[][NP], double a_p[][NP], double p_s[][NP], double p_p[][NP], int num, int nchn, double *rms, double *b)
 // calculate function A7 in Taylor 92, for multi-frequency channel
 //double A7 (int n, double *amp_s, double *amp_p, double *phi_s, double *phi_p, double phase)
@@ -49,6 +50,33 @@ double A7_multi (double phase, double a_s[][NP], double a_p[][NP], double p_s[][
 			A7+=(b[i]*(j+1)*a_s[i][j]*a_p[i][j]*sin(p_s[i][j]-p_p[i][j]+(j+1)*phase))/(rms[i]*rms[i]);
 		//printf ("%lf %lf\n", a_s[i], p_s[i]);
 		}
+	}
+	
+	return A7;
+}
+*/
+
+double A7_multi (double phase, double a_s[][NP], double a_p[][NP], double p_s[][NP], double p_p[][NP], int num, int nchn, double *rms)
+// calculate function A7 in Taylor 92, for multi-frequency channel
+//double A7 (int n, double *amp_s, double *amp_p, double *phi_s, double *phi_p, double phase)
+{
+	double A7=0;
+	int i,j;
+	double c1, c2, s ;
+
+	for (i = 0; i < nchn; i++)
+	{
+		c1 = 0.0;
+		c2 = 0.0;
+		s = 0.0;
+		for (j = 0; j < num; j++)
+		{
+			c1 += (j+1)*a_s[i][j]*a_p[i][j]*sin(p_s[i][j]-p_p[i][j]+(j+1)*phase);
+			c2 += a_s[i][j]*a_p[i][j]*cos(p_s[i][j]-p_p[i][j]+(j+1)*phase);
+			s += a_s[i][j]*a_s[i][j];
+		//printf ("%lf %lf\n", a_s[i], p_s[i]);
+		}
+		A7 += (c1*c2)/(s*rms[i]*rms[i]);
 	}
 	
 	return A7;
@@ -155,6 +183,7 @@ int error (double phase, double b, double *errphase, double *errb, double a_s[][
 	return 0;
 }
 
+/*
 int error_multi (double phase, double *errphase, double a_s[][NP], double a_p[][NP], double p_s[][NP], double p_p[][NP], int num, int nchn, double *rms, double *bx)
 // calculate the errors of phase, a and b according to Talyor 1992  
 {
@@ -172,6 +201,40 @@ int error_multi (double phase, double *errphase, double a_s[][NP], double a_p[][
 		    //s2+=(a_s[i][j]*a_s[i][j])/(rms[i]*rms[i]);
 		n++;
 		}
+	}
+	
+	(*errphase)=1.0/sqrt(2.0*fabs(s1));
+	//(*errb)=1.0/sqrt(2.0*s2);
+
+	return 0;
+}
+*/
+
+int error_multi (double phase, double *errphase, double a_s[][NP], double a_p[][NP], double p_s[][NP], double p_p[][NP], int num, int nchn, double *rms)
+// calculate the errors of phase, a and b according to Talyor 1992  
+{
+	double s1;
+	int i,j;
+
+	s1=0.0;
+
+	double c1, c2, c3, s;
+
+	for (i = 0; i < nchn; i++)
+	{
+		c1 = 0.0;
+		c2 = 0.0;
+		c3 = 0.0;
+		s = 0.0;
+		for (j = 0; j < num; j++)
+		{
+			c1 += (j+1)*a_s[i][j]*a_p[i][j]*sin(p_s[i][j]-p_p[i][j]+(j+1)*phase);
+			c2 += a_s[i][j]*a_p[i][j]*cos(p_s[i][j]-p_p[i][j]+(j+1)*phase);
+			c3 += (j+1)*(j+1)*a_s[i][j]*a_p[i][j]*cos(p_s[i][j]-p_p[i][j]+(j+1)*phase);
+			s += a_s[i][j]*a_s[i][j];
+			//s2+=(a_s[i][j]*a_s[i][j])/(rms[i]*rms[i]);
+		}
+		s1 += (c2*c3-c1*c1)/(s*rms[i]*rms[i]);
 	}
 	
 	(*errphase)=1.0/sqrt(2.0*fabs(s1));
@@ -266,11 +329,13 @@ double zbrent(double (*func)(double phase, double a_s[][NP], double a_p[][NP], d
 	return 0.0;
 }
 
-double zbrent_multi(double (*func)(double phase, double a_s[][NP], double a_p[][NP], double p_s[][NP], double p_p[][NP], int num, int nchn, double *rms, double *bx), double x1, double x2, double tol, double a_s[][NP], double a_p[][NP], double p_s[][NP], double p_p[][NP], int num, int nchn, double *rms, double *bx)
+double zbrent_multi(double (*func)(double phase, double a_s[][NP], double a_p[][NP], double p_s[][NP], double p_p[][NP], int num, int nchn, double *rms), double x1, double x2, double tol, double a_s[][NP], double a_p[][NP], double p_s[][NP], double p_p[][NP], int num, int nchn, double *rms)
+//double zbrent_multi(double (*func)(double phase, double a_s[][NP], double a_p[][NP], double p_s[][NP], double p_p[][NP], int num, int nchn, double *rms, double *bx), double x1, double x2, double tol, double a_s[][NP], double a_p[][NP], double p_s[][NP], double p_p[][NP], int num, int nchn, double *rms, double *bx)
 {
 	int iter;
 	double a=x1,b=x2,c=x2,d,e,min1,min2;
-	double fa=(*func)(a, a_s, a_p, p_s, p_p, num, nchn, rms, bx),fb=(*func)(b, a_s, a_p, p_s, p_p, num, nchn, rms, bx),fc,p,q,r,s,tol1,xm;
+	double fa=(*func)(a, a_s, a_p, p_s, p_p, num, nchn, rms),fb=(*func)(b, a_s, a_p, p_s, p_p, num, nchn, rms),fc,p,q,r,s,tol1,xm;
+	//double fa=(*func)(a, a_s, a_p, p_s, p_p, num, nchn, rms, bx),fb=(*func)(b, a_s, a_p, p_s, p_p, num, nchn, rms, bx),fc,p,q,r,s,tol1,xm;
 
 	if ((fa > 0.0 && fb > 0.0) || (fa < 0.0 && fb < 0.0))
 		puts ("Root must be bracketed in zbrent\n");
@@ -343,7 +408,8 @@ double zbrent_multi(double (*func)(double phase, double a_s[][NP], double a_p[][
 		else
 			b += SIGN(tol1,xm);
 
-		fb=(*func)(b, a_s, a_p, p_s, p_p, num, nchn, rms, bx);
+		fb=(*func)(b, a_s, a_p, p_s, p_p, num, nchn, rms);
+		//fb=(*func)(b, a_s, a_p, p_s, p_p, num, nchn, rms, bx);
 	}
 
 	puts ("Maximum number of iterations exceeded in zbrent\n");
@@ -527,7 +593,8 @@ int get_toa (double *s, double *p, double *phasex, double *errphasex, double psr
 	return 0;
 }
 
-int get_toa_multi (double *s, double *p, double *rms, double *bx, int nchn, double *phasex, double *errphasex, double psrfreq, int nphase)
+int get_toa_multi (double *s, double *p, double *rms, int nchn, double *phasex, double *errphasex, double psrfreq, int nphase)
+//int get_toa_multi (double *s, double *p, double *rms, double *bx, int nchn, double *phasex, double *errphasex, double psrfreq, int nphase)
 {
     //int nphase=1024;
 
@@ -584,7 +651,8 @@ int get_toa_multi (double *s, double *p, double *rms, double *bx, int nchn, doub
 		ini_phase=2.0*3.1415926*(nphase-1-d)/nphase;
 		up_phase=ini_phase+step;
 		low_phase=ini_phase-step;
-		while (A7_multi(up_phase, amp_s, amp_p, phi_s, phi_p, k, nchn, rms, bx)*A7_multi(low_phase, amp_s, amp_p, phi_s, phi_p, k, nchn, rms,bx)>0.0)
+		while (A7_multi(up_phase, amp_s, amp_p, phi_s, phi_p, k, nchn, rms)*A7_multi(low_phase, amp_s, amp_p, phi_s, phi_p, k, nchn, rms)>0.0)
+		//while (A7_multi(up_phase, amp_s, amp_p, phi_s, phi_p, k, nchn, rms, bx)*A7_multi(low_phase, amp_s, amp_p, phi_s, phi_p, k, nchn, rms,bx)>0.0)
 		{
 		    up_phase+=step;
 		    low_phase-=step;
@@ -595,7 +663,8 @@ int get_toa_multi (double *s, double *p, double *rms, double *bx, int nchn, doub
 		ini_phase=-2.0*3.1415926*d/nphase;
 		up_phase=ini_phase+step;
 		low_phase=ini_phase-step;
-		while (A7_multi(up_phase, amp_s, amp_p, phi_s, phi_p, k, nchn, rms, bx)*A7_multi(low_phase, amp_s, amp_p, phi_s, phi_p, k, nchn, rms, bx)>0.0)
+		while (A7_multi(up_phase, amp_s, amp_p, phi_s, phi_p, k, nchn, rms)*A7_multi(low_phase, amp_s, amp_p, phi_s, phi_p, k, nchn, rms)>0.0)
+		//while (A7_multi(up_phase, amp_s, amp_p, phi_s, phi_p, k, nchn, rms, bx)*A7_multi(low_phase, amp_s, amp_p, phi_s, phi_p, k, nchn, rms, bx)>0.0)
 		{
 		    up_phase+=step;
 		    low_phase-=step;
@@ -604,7 +673,8 @@ int get_toa_multi (double *s, double *p, double *rms, double *bx, int nchn, doub
 
     // calculate phase shift, a and b
     double phase;
-    phase=zbrent_multi(A7_multi, low_phase, up_phase, 1.0e-16, amp_s, amp_p, phi_s, phi_p, k, nchn, rms, bx);
+    phase=zbrent_multi(A7_multi, low_phase, up_phase, 1.0e-16, amp_s, amp_p, phi_s, phi_p, k, nchn, rms);
+    //phase=zbrent_multi(A7_multi, low_phase, up_phase, 1.0e-16, amp_s, amp_p, phi_s, phi_p, k, nchn, rms, bx);
     //phase=zbrent(A7, -1.0, 1.0, 1.0e-16);
     //phase=zbrent(A7, -0.005, 0.005, 1.0e-16);
     //b=A9_multi(phase, amp_s, amp_p, phi_s, phi_p, k, nchn, rms);
@@ -619,9 +689,10 @@ int get_toa_multi (double *s, double *p, double *rms, double *bx, int nchn, doub
 		
 	
 	// calculate the errors of phase and b
-    double errphase;	
+  double errphase;	
 
-	error_multi(phase, &errphase, amp_s, amp_p, phi_s, phi_p, k, nchn, rms, bx);
+	error_multi(phase, &errphase, amp_s, amp_p, phi_s, phi_p, k, nchn, rms);
+	//error_multi(phase, &errphase, amp_s, amp_p, phi_s, phi_p, k, nchn, rms, bx);
 	printf ("multi-template\n");
 	printf ("%.10lf %.10lf\n", ((phase/3.1415926)/(psrfreq*2.0))*1.0e+6, ((errphase/3.1415926)/(psrfreq*2.0))*1.0e+6);  // microseconds
 	//printf ("%.10lf %.10lf\n", ((phase/3.1415926)*4.569651/2.0)*1.0e+3, ((errphase/3.1415926)*4.569651/2.0)*1.0e+3);  // microseconds

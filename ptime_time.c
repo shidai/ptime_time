@@ -205,7 +205,8 @@ int main (int argc, char *argv[])
 			// if tmode == 0, do freq-dependent template matching, get one phase shift
 			if ( tmode == 0)
 			{
-				get_toa_multi(s_multi, p_multi, rms, b, nchn, &phase, &e_phase, psrfreq, nphase);
+				get_toa_multi(s_multi, p_multi, rms, nchn, &phase, &e_phase, psrfreq, nphase);
+				//get_toa_multi(s_multi, p_multi, rms, b, nchn, &phase, &e_phase, psrfreq, nphase);
 
 				// transform phase shifts to MJD TOAs
 				form_toa_multi(name_data, name_predict, h, nchn, imjd, smjd, offs, phase, e_phase, &t, &e_dt, &frequency);
