@@ -6,8 +6,11 @@
 
 typedef struct component {
   double concentration; // Concentration of each component
+  double concentration_err; // Error of concentration of each component
   double height;        // Height of each component
+  double height_err;        // Error of height of each component
   double centroid;      // Centroid of each component
+  double centroid_err;      // Error of centroid of each component
 } component;
 
 typedef struct polStruct {
@@ -211,10 +214,13 @@ void readTemplate_ptime(char *file,tmplStruct *tmpl)
 	      substr[4]='\0';
 	      if (strcasecmp(substr,"COMP")==0)
 		{
-		  sscanf(line,"%s %lf %lf %lf",dummy,
+		  sscanf(line,"%s %lf %lf %lf %lf %lf %lf",dummy,
 			 &(tmpl->channel[chan].pol[stokes].comp[comp].height),
+			 &(tmpl->channel[chan].pol[stokes].comp[comp].height_err),
 			 &(tmpl->channel[chan].pol[stokes].comp[comp].concentration),
-			 &(tmpl->channel[chan].pol[stokes].comp[comp].centroid));
+			 &(tmpl->channel[chan].pol[stokes].comp[comp].concentration_err),
+			 &(tmpl->channel[chan].pol[stokes].comp[comp].centroid),
+			 &(tmpl->channel[chan].pol[stokes].comp[comp].centroid_err));
 		  comp++;
 		}
 	    }
