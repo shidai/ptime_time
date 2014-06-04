@@ -26,7 +26,7 @@ long int stt_imjd ( char *name )
         printf( "error while getting the npol number\n" );
 		//fits_get_colnum(fptr, CASEINSEN, "DATA", &colnum, &status);
 	}
-    printf ("STT_IMJD: %ld\n", imjd);
+    //printf ("STT_IMJD: %ld\n", imjd);
 	///////////////////////////////////////////////////////////////////////////
 
     if ( fits_close_file(fptr, &status) )
@@ -56,7 +56,7 @@ long int stt_smjd ( char *name )
         printf( "error while getting the npol number\n" );
 		//fits_get_colnum(fptr, CASEINSEN, "DATA", &colnum, &status);
 	}
-    printf ("STT_SMJD: %ld\n", smjd);
+    //printf ("STT_SMJD: %ld\n", smjd);
 	///////////////////////////////////////////////////////////////////////////
 
     if ( fits_close_file(fptr, &status) )
@@ -86,7 +86,7 @@ double stt_offs ( char *name )
         printf( "error while getting the npol number\n" );
 		//fits_get_colnum(fptr, CASEINSEN, "DATA", &colnum, &status);
 	}
-    printf ("STT_OFFS: %lf\n", stt_offs);
+    //printf ("STT_OFFS: %lf\n", stt_offs);
 	///////////////////////////////////////////////////////////////////////////
 
     if ( fits_close_file(fptr, &status) )
@@ -116,7 +116,7 @@ int get_nchan ( char *name )
         printf( "error while getting the npol number\n" );
 		//fits_get_colnum(fptr, CASEINSEN, "DATA", &colnum, &status);
 	}
-    printf ("number of nchan: %d\n", nchan);
+    //printf ("number of nchan: %d\n", nchan);
 	///////////////////////////////////////////////////////////////////////////
 
     if ( fits_close_file(fptr, &status) )
@@ -147,7 +147,7 @@ int get_npol ( char *name )
         printf( "error while getting the npol number\n" );
 		//fits_get_colnum(fptr, CASEINSEN, "DATA", &colnum, &status);
 	}
-    printf ("number of npol: %d\n", npol);
+    //printf ("number of npol: %d\n", npol);
 
 	///////////////////////////////////////////////////////////////////////////
 
@@ -179,7 +179,7 @@ int get_nphase ( char *name )
         printf( "error while getting the nbin number\n" );
 		//fits_get_colnum(fptr, CASEINSEN, "DATA", &colnum, &status);
 	}
-    printf ("number of nbin: %d\n", nbin);
+    //printf ("number of nbin: %d\n", nbin);
 
 	///////////////////////////////////////////////////////////////////////////
 
@@ -209,7 +209,7 @@ int get_subint ( char *name )
     {
         printf( "error while getting the row number\n" );
     }
-    printf ("number of subint: %ld\n", nrows);
+    //printf ("number of subint: %ld\n", nrows);
     
 	///////////////////////////////////////////////////////////////////////////
 
@@ -656,7 +656,7 @@ int check_std ( char *name, int subint, int mode, int nchn, int nphase)
 			printf( "error while getting the npol number\n" );
 			//fits_get_colnum(fptr, CASEINSEN, "DATA", &colnum, &status);
 		}
-		printf ("STD %d\n", nchan);
+		//printf ("STD %d\n", nchan);
 		///////////////////////////////////////////////////////////////////////////
 
         //////////////////////////////////////////////////////////////////////////
@@ -666,7 +666,7 @@ int check_std ( char *name, int subint, int mode, int nchn, int nphase)
 			printf( "error while getting the nbin number\n" );
 		   //fits_get_colnum(fptr, CASEINSEN, "DATA", &colnum, &status);
 		}
-		printf ("number of nbin of std: %d\n", nbin);
+		//printf ("number of nbin of std: %d\n", nbin);
 		
 	    ///////////////////////////////////////////////////////////////////////////
 		//
@@ -684,11 +684,11 @@ int check_std ( char *name, int subint, int mode, int nchn, int nphase)
 				
 		// output the template
 		// check if nchan = nchn
-		if ( nchan == nchn )
-		{
-			printf ("The channel number of template = the channel number of data\n");
-		}
-		else 
+		//if ( nchan == nchn )
+		//{
+		//	printf ("The channel number of template = the channel number of data\n");
+		//}
+		if ( nchan != nchn )
 		{
 			printf ("The channel number of template != the channel number of data\n");
 
@@ -709,15 +709,15 @@ int check_std ( char *name, int subint, int mode, int nchn, int nphase)
 	{
 		tmplStruct tmpl;
 		initialiseTemplate(&tmpl);
-		printf("Reading template\n");
+		//printf("Reading template\n");
 		readTemplate_ptime(name,&tmpl);
-	    printf("Complete reading template\n");
+	    //printf("Complete reading template\n");
 
-		if ( tmpl.nchan == nchn )
-		{
-			printf ("The channel number of template = the channel number of data\n");
-		}
-		else 
+		//if ( tmpl.nchan == nchn )
+		//{
+		//	printf ("The channel number of template = the channel number of data\n");
+		//}
+		if ( tmpl.nchan != nchn )
 		{
 			printf ("The channel number of template != the channel number of data\n");
 
@@ -802,7 +802,7 @@ int read_std ( char *name, int subint, double *profile, int nphase, int mode, in
 		null = 0;
 		anynull = 0;
 
-		printf ("%d\n", nbin);
+		//printf ("%d\n", nbin);
 		fits_read_col(fptr, TDOUBLE, colnum, frow, felem, nelem, &null, profile, &anynull, &status);           // read the column
 		//fits_read_col(fptr, TDOUBLE, colnum, frow, felem, nelem, &null, temp, &anynull, &status);           // read the column
 
@@ -826,9 +826,9 @@ int read_std ( char *name, int subint, double *profile, int nphase, int mode, in
 	{
 		tmplStruct tmpl;
 		initialiseTemplate(&tmpl);
-		printf("Reading template\n");
+		//printf("Reading template\n");
 		readTemplate_ptime(name,&tmpl);
-	    printf("Complete reading template\n");
+	    //printf("Complete reading template\n");
 
 		int i,j;
 		double phi;

@@ -49,7 +49,8 @@ double A7_multi (double phase, double a_s[][NP], double a_p[][NP], double p_s[][
 
 //double A9 (double phase);
 double A9 (double phase, double a_s[][NP], double a_p[][NP], double p_s[][NP], double p_p[][NP], int num, int nchn);
-//double A9_multi (double phase, double a_s[][NP], double a_p[][NP], double p_s[][NP], double p_p[][NP], int num, int nchn, double *rms);
+
+int A9_multi (double phase, double a_s[][NP], double a_p[][NP], double p_s[][NP], double p_p[][NP], int num, int nchn, double *b);
 
 //double zbrent(double (*func)(double), double x1, double x2, double tol);
 double zbrent(double (*func)(double phase, double a_s[][NP], double a_p[][NP], double p_s[][NP], double p_p[][NP], int num, int nchn), double x1, double x2, double tol, double a_s[][NP], double a_p[][NP], double p_s[][NP], double p_p[][NP], int num, int nchn);
@@ -93,3 +94,11 @@ int remove_baseline (double *in, int index, double frac_off, int n, double *out)
 int pre_diff (double *s, int nphase, int index, double frac_off, double *s_out);
 
 int InitialGuess (double *s, double *p, int nphase);
+
+int preA7_QUV (double *p, int nphase, int nchn, double *real_p, double *ima_p);
+
+int rotate (int N, double *real_p, double *real_p_rotate, double *ima_p, double *ima_p_rotate, double rot);
+
+int align (int N, double phase, double b, double a, double *real_p, double *real_p_align, double *ima_p, double *ima_p_align, double rotate);
+
+int inverse_dft (double *real_p, double *ima_p, int ncount, double *p_new);

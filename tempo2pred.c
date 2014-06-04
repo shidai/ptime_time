@@ -40,12 +40,12 @@ T2Predictor_Read(T2Predictor *t2p, char *fname)
 {
   FILE *f = fopen(fname, "r");
   int ret;
-  printf("step1\n");
+  //printf("step1\n");
   if (!f)
     return -1;
-  printf("Got here\n");
+  //printf("Got here\n");
   ret = T2Predictor_FRead(t2p, f);
-  printf("and here %d\n",ret);
+  //printf("and here %d\n",ret);
   fclose(f);
   return ret;
 }

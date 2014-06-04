@@ -103,28 +103,27 @@ double A9 (double phase, double a_s[][NP], double a_p[][NP], double p_s[][NP], d
 	return A9;
 }
 
-/*
-double A9_multi (double phase, double a_s[][NP], double a_p[][NP], double p_s[][NP], double p_p[][NP], int num, int nchn, double *rms)
+int A9_multi (double phase, double a_s[][NP], double a_p[][NP], double p_s[][NP], double p_p[][NP], int num, int nchn, double *b)
 {
 // calculate function A9 in Taylor 92, for multi-frequency channel
-	double A9=0.0, sum=0.0;
+	double A9, sum;
 	int i,j;
 
 	for (i = 0; i < nchn; i++)
 	{
-	    for (j = 0; j < num; j++)
-	    {
-		    A9+=(a_s[i][j]*a_p[i][j]*cos(p_s[i][j]-p_p[i][j]+(j+1)*phase))/(rms[i]*rms[i]);
-		    sum+=(a_s[i][j]*a_s[i][j])/(rms[i]*rms[i]);
-		    //printf ("%lf %lf\n", a_s[i], p_s[i]);
+		A9 = 0.0;
+		sum = 0.0;
+	  for (j = 0; j < num; j++)
+	  {
+		  A9+=a_s[i][j]*a_p[i][j]*cos(p_s[i][j]-p_p[i][j]+(j+1)*phase);
+		  sum+=a_s[i][j]*a_s[i][j];
+		  //printf ("%lf %lf\n", a_s[i], p_s[i]);
 		}
+		b[i] = A9/sum;
 	}
 	
-	A9=A9/sum;
-
-	return A9;
+	return 0;
 }
-*/
 
 int dft_profiles (int N, double *in, fftw_complex *out)
 // dft of profiles
@@ -530,6 +529,7 @@ int get_toa (double *s, double *p, double *phasex, double *errphasex, double psr
 
 	d = InitialGuess (s, p, nphase);
 	//d=peak_p-peak_s;
+	//printf ("Initial guess: %d\n",d);
 	step=2.0*3.1415926/(10.0*nphase);
 	//step=2.0*3.1415926/10240.0;
 
@@ -568,6 +568,7 @@ int get_toa (double *s, double *p, double *phasex, double *errphasex, double psr
 	(*bx) = b;
 
 		
+	//printf ("Phase shift: %.10lf\n", phase);
 	//printf ("%.10lf %.10lf\n", phase, A7(phase));
 	//printf ("%.10lf \n", ((phase/3.1415926)*5.75/2.0)*1.0e+3);  // microseconds
 	//printf ("%.10lf \n", b);
@@ -579,7 +580,7 @@ int get_toa (double *s, double *p, double *phasex, double *errphasex, double psr
     double errphase, errb;	
 
 	error(phase,b,&errphase,&errb, amp_s, amp_p, phi_s, phi_p, k,nchn);
-	printf ("%.10lf %.10lf\n", ((phase/3.1415926)/(psrfreq*2.0))*1.0e+6, ((errphase/3.1415926)/(psrfreq*2.0))*1.0e+6);  // microseconds
+	//printf ("%.10lf %.10lf\n", ((phase/3.1415926)/(psrfreq*2.0))*1.0e+6, ((errphase/3.1415926)/(psrfreq*2.0))*1.0e+6);  // microseconds
 	//printf ("%.10lf %.10lf\n", ((phase/3.1415926)*4.569651/2.0)*1.0e+3, ((errphase/3.1415926)*4.569651/2.0)*1.0e+3);  // microseconds
 	//printf ("errphase %.10lf \n", ((errphase/3.1415926)*5.75/2.0)*1.0e+6);
 	//printf ("errb %.10lf \n", errb);
@@ -632,17 +633,28 @@ int get_toa_multi (double *s, double *p, double *rms, int nchn, double *phasex, 
 	preA7(&k, amp_s, amp_p, phi_s, phi_p, s, p, nphase, nchn);
 	
 	// initial guess of the phase
+	// use the central subchannel to guess the phase shift
+	double pt[nphase];
+	double st[nphase];
+	int h;
+	for (h = 0; h < nphase; h++)
+	{
+		pt[h] = p[(int)(nchn/2)*nphase+h];
+		st[h] = s[(int)(nchn/2)*nphase+h];
+	}
+
   int peak_s, peak_p;	
 
-	find_peak(nphase,s,&peak_s);
-	find_peak(nphase,p,&peak_p);
+	find_peak(nphase,st,&peak_s);
+	find_peak(nphase,pt,&peak_p);
 
 	int d;
 	double step;
 	double ini_phase,up_phase,low_phase;
 
-	d = InitialGuess (s, p, nphase);
+	d = InitialGuess (st, pt, nphase);
 	//d=peak_p-peak_s;
+	//printf ("Initial guess: %d\n",d);
 	step=2.0*3.1415926/(10.0*nphase);
 	//step=2.0*3.1415926/10240.0;
 
@@ -679,9 +691,11 @@ int get_toa_multi (double *s, double *p, double *rms, int nchn, double *phasex, 
     //phase=zbrent(A7, -0.005, 0.005, 1.0e-16);
     //b=A9_multi(phase, amp_s, amp_p, phi_s, phi_p, k, nchn, rms);
     //a=A4(b);
+		double b[nchn];
+		A9_multi (phase, amp_s, amp_p, phi_s, phi_p, k, nchn, b);
 
 		
-	//printf ("%.10lf %.10lf\n", phase, A7(phase));
+	//printf ("Phase shift: %.10lf\n", phase);
 	//printf ("%.10lf \n", ((phase/3.1415926)*5.75/2.0)*1.0e+3);  // microseconds
 	//printf ("%.10lf \n", b);
 	//printf ("%.10lf \n", a);
@@ -694,13 +708,71 @@ int get_toa_multi (double *s, double *p, double *rms, int nchn, double *phasex, 
 	error_multi(phase, &errphase, amp_s, amp_p, phi_s, phi_p, k, nchn, rms);
 	//error_multi(phase, &errphase, amp_s, amp_p, phi_s, phi_p, k, nchn, rms, bx);
 	printf ("multi-template\n");
-	printf ("%.10lf %.10lf\n", ((phase/3.1415926)/(psrfreq*2.0))*1.0e+6, ((errphase/3.1415926)/(psrfreq*2.0))*1.0e+6);  // microseconds
+	printf ("Phase shift: %.10lf+-%.10lf\n", ((phase/3.1415926)/(psrfreq*2.0))*1.0e+6, ((errphase/3.1415926)/(psrfreq*2.0))*1.0e+6);  // microseconds
 	//printf ("%.10lf %.10lf\n", ((phase/3.1415926)*4.569651/2.0)*1.0e+3, ((errphase/3.1415926)*4.569651/2.0)*1.0e+3);  // microseconds
 	//printf ("errphase %.10lf \n", ((errphase/3.1415926)*5.75/2.0)*1.0e+6);
 	//printf ("errb %.10lf \n", errb);
 	
 	(*phasex) = phase;
 	(*errphasex) = errphase;
+
+	/*
+	///////////////////////////////////////////////////////////////
+	// output the aligned profile and template
+	double frac_off = 0.1;
+	int index_s, index_p;
+	int i;
+	//printf ("%d\n", nchn);
+	for (i = 0; i < nchn; i++)
+	{
+		double p_temp[nphase];
+		double s_temp[nphase];
+		int j;
+		for (j = 0; j < nphase; j++)
+		{
+			p_temp[j] = p[i*nphase+j];
+			s_temp[j] = s[i*nphase+j];
+			//printf ("%d %lf %lf\n",j, s_temp[j],p_temp[j]);
+		}
+
+		index_p = def_off_pulse (nphase, p_temp, frac_off);
+		index_s = def_off_pulse (nphase, s_temp, frac_off);
+		printf ("%d %d\n",j, index_s,index_p);
+
+		double I_new[nphase];
+		double Is_new[nphase];
+		pre_diff (s_temp, nphase, index_s, frac_off, Is_new);
+		pre_diff (p_temp, nphase, index_p, frac_off, I_new);
+
+		double s_real[NP], s_ima[NP];
+		double real_p[NP], ima_p[NP];
+		preA7_QUV (I_new, nphase, nchn, real_p, ima_p);
+		preA7_QUV (Is_new, nphase, nchn, s_real, s_ima);
+
+		// rotate the profile by pi
+		double rot = 1.0;
+		double real_s_rotate[nphase/2+1], ima_s_rotate[nphase/2+1];
+		rotate (nphase, s_real, real_s_rotate, s_ima, ima_s_rotate, rot);
+
+		// align profile and template
+		double real_p_align[nphase/2+1], ima_p_align[nphase/2+1];
+		align (nphase, phase, b[i], 0.0, real_p, real_p_align, ima_p, ima_p_align, rot);
+		for (j = 0; j < nphase/2; j++)
+		{
+			printf ("%d %lf %lf\n",j, real_s_rotate[j],real_p_align[j]);
+		}
+
+		double s_new[nphase];
+		double p_new[nphase];
+		inverse_dft (real_s_rotate, ima_s_rotate, nphase, s_new);
+		inverse_dft (real_p_align, ima_p_align, nphase, p_new);
+
+		for (j = 0; j < nphase; j++)
+		{
+			//printf ("%d %lf %lf\n", j, s_new[j], p_new[j]);
+		}
+	}
+	*/
 
 	return 0;
 }
@@ -917,7 +989,7 @@ int form_toa_multi (char *name_data, char *name_predict, int subint, int nchn, l
 	}
 	frequency = frequency/weight;
 	(*freqout) = frequency;
-    printf ("Frequency is %lf\n", frequency);
+    //printf ("Frequency is %lf\n", frequency);
 
 	// get the period
     print_t2pred(name_predict);   // output t2pred.dat
@@ -934,24 +1006,24 @@ int form_toa_multi (char *name_data, char *name_predict, int subint, int nchn, l
 
 	// get the period at mjd0
 	mjd0 = (long double)(imjd) + ((long double)(smjd) + (long double)(offs) + (long double)(offset))/86400.0L;
-	printf ("imjd is %ld \n", imjd);
-	printf ("mjd0 is %.15Lf \n", mjd0);
+	//printf ("imjd is %ld \n", imjd);
+	//printf ("mjd0 is %.15Lf \n", mjd0);
 
 	period = 1.0/T2Predictor_GetFrequency(&pred,mjd0,frequency);
-    printf ("Period is %.15lf\n", period);
+    //printf ("Period is %.15lf\n", period);
 	
 	// transform phase shift to time shift
     //dt = (phase/PI)*period/2.0;
     //e_dt = (e_phase/PI)*period/2.0;
     dt = ((long double)(phase)/PI)*((long double)(period))/2.0L;
     (*e_dt) = ((long double)(e_phase)/PI)*((long double)(period))/2.0L;
-    printf ("dt is %.10Lf +/- %.10Lf\n", dt, e_dt);
+    //printf ("dt is %.10Lf +/- %.10Lf\n", dt, e_dt);
 
 	// calculate the TOA
     (*t) = (long double)(imjd) + ((long double)(smjd) + (long double)(offs) - (long double)(dt) + (long double)(offset))/86400.0L;
     //t = imjd;
 		
-    printf ("offset is %lf\n", offset);
+    //printf ("offset is %lf\n", offset);
 	//fprintf (fp, "%s  %lf  %.15Lf  %Lf  7\n", fname, frequency, t, e_dt*1e+6);
 
 	return 0;
@@ -1044,7 +1116,7 @@ int find_peak (int n, double *s, int *position)
 
 	for (i = 0; i < n; i++)
 	{
-		if (fabs(peak-fabs(s[i])) < 1.0e-3)
+		if (fabs(peak-s[i]) < 1.0e-3)
 		{
 			(*position) = i;
 		}
@@ -1070,7 +1142,8 @@ double find_peak_value (int n, double *s)
 		b = temp[i+1];
 		//a = fabs(temp[i]);
 		//b = fabs(temp[i+1]);
-		c = (fabs(a) >= fabs(b) ? a : b);
+		//c = (fabs(a) >= fabs(b) ? a : b);
+		c = (a >= b ? a : b);
 
 		temp[i+1] = c;
 	}
@@ -1158,7 +1231,7 @@ int def_off_pulse (int nphase, double *in, double frac_off)
 			small = 0.0;
 			for(j = 0; j < num_off; j++)
 			{
-				small += (in[j])*(in[j]);
+				small += (in[j]+30000.0)*(in[j]+30000.0);  // make all numbers positive
 			}
 			small = sqrt(small/num_off);
 		}
@@ -1168,11 +1241,11 @@ int def_off_pulse (int nphase, double *in, double frac_off)
 		{
 			if ((i+j) > n-1)
 			{
-				temp += (in[(i+j)-(n-1)])*(in[(i+j)-(n-1)]);
+				temp += (in[(i+j)-(n-1)]+30000.0)*(in[(i+j)-(n-1)]+30000.0);
 			}
 			else 
 			{
-				temp += (in[i+j])*(in[i+j]);
+				temp += (in[i+j]+30000.0)*(in[i+j]+30000.0);
 			}
 		}
 		temp = sqrt(temp/num_off);
@@ -1251,7 +1324,7 @@ int pre_diff (double *s, int nphase, int index, double frac_off, double *s_out)
 int InitialGuess (double *s, double *p, int nphase) 
 {
 	int index;
-	double frac_off = 0.05;  // set to be 0.1
+	double frac_off = 0.05;  // set to be 0.05
 
 	// remove the baseline of template
 	index = def_off_pulse (nphase, s, frac_off);
@@ -1270,5 +1343,189 @@ int InitialGuess (double *s, double *p, int nphase)
 	d = corr (s_out, p_out, nphase);
 
 	return d;
+}
+
+int preA7_QUV (double *p, int nphase, int nchn, double *real_p, double *ima_p)
+// preparation for calculating A7 of Talyor 1992  
+{
+	// nphase is the dimention of one profile, nchn is number of profiles
+	// k is the dimention of amp of one profile 
+	int i,j;
+	
+	/////////////////////////////////////////////////////////////////////////////////
+	double test[nphase];  // initialize the system, don't know why....
+
+	for (i=0;i<nphase;i++)
+	{
+		test[i]=p[i];
+	}
+	fftw_complex *out_t;
+	out_t = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * nphase);
+	dft_profiles(nphase,test,out_t);
+	//////////////////////////////////////////////////////////////////////////////
+
+	fftw_complex *out_p;
+	
+	out_p = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * nphase);
+	
+	double p_temp[nphase];  // store one template and profile
+
+	for (i = 0; i < nchn; i++)
+	{
+	    for (j=0;j<nphase;j++)
+	    {
+		    p_temp[j]=p[i*nphase + j];
+	    }
+
+	    dft_profiles(nphase,p_temp,out_p);
+
+	    //double amp_s[N/2],phi_s[N/2];
+	    //double amp_p[N/2],phi_p[N/2];
+
+		for (j = 0; j < nphase/2+1; j++)                                                  
+		{                                                                      
+			real_p[j]=out_p[j][0];                                             
+			ima_p[j]=out_p[j][1];                                              
+		}
+										
+	}
+
+	fftw_free(out_p); 
+	fftw_free(out_t); 
+
+	return 0;
+}
+
+int rotate (int N, double *real_p, double *real_p_rotate, double *ima_p, double *ima_p_rotate, double rot)
+{
+	// k is the dimention of amp, N is the dimention of s
+	int i;
+
+	// for substraction 
+	double amp,cosina,sina;
+	for (i=0;i<N/2+1;i++)
+	{
+		// calculate the sin(phi) and cos(phi) of the profile
+		amp=sqrt(real_p[i]*real_p[i]+ima_p[i]*ima_p[i]);
+		cosina=real_p[i]/amp;
+		sina=ima_p[i]/amp;
+
+		// rotate profile
+		real_p_rotate[i]=amp*(cosina*cos(-i*rot*pi)-sina*sin(-i*rot*pi));
+		ima_p_rotate[i]=amp*(sina*cos(-i*rot*pi)+cosina*sin(-i*rot*pi));
+		//real_p_rotate[i]=amp*(cosina*cos(-i*pi)-sina*sin(-i*pi));
+		//ima_p_rotate[i]=amp*(sina*cos(-i*pi)+cosina*sin(-i*pi));
+		
+	}
+
+	return 0;
+}
+
+int align (int N, double phase, double b, double a, double *real_p, double *real_p_align, double *ima_p, double *ima_p_align, double rotate)
+{
+	// k is the dimention of amp, N is the dimention of s
+	int i;
+
+	// for substraction 
+	double amp,cosina,sina;
+	for (i=0;i<N/2+1;i++)
+	{
+		// calculate the sin(phi) and cos(phi) of the profile
+		amp=sqrt(real_p[i]*real_p[i]+ima_p[i]*ima_p[i]);
+		cosina=real_p[i]/amp;
+		sina=ima_p[i]/amp;
+
+		// add phase shift to the profile, phase
+		//real_p_align[i]=amp*(cosina)/b;
+		//ima_p_align[i]=amp*(sina)/b;
+		//real_p_align[i]=amp*(cosina*cos(-i*phase)-sina*sin(-i*phase));
+		//ima_p_align[i]=amp*(sina*cos(-i*phase)+cosina*sin(-i*phase));
+		//real_p_align[i]=amp*(cosina*cos(-i*phase)-sina*sin(-i*phase))/b;
+		//ima_p_align[i]=amp*(sina*cos(-i*phase)+cosina*sin(-i*phase))/b;
+		real_p_align[i]=(amp*(cosina*cos(-i*(phase+rotate*pi))-sina*sin(-i*(phase+rotate*pi))))/b;
+		ima_p_align[i]=(amp*(sina*cos(-i*(phase+rotate*pi))+cosina*sin(-i*(phase+rotate*pi))))/b;
+		
+	}
+
+	return 0;
+}
+
+int inverse_dft (double *real_p, double *ima_p, int ncount, double *p_new)
+{
+	double *dp;
+    fftw_plan plan;
+	fftw_complex *cp;
+
+    dp = (double *)malloc(sizeof (double) * ncount);
+	cp = (fftw_complex *)fftw_malloc(sizeof (fftw_complex) * ncount);
+	memset(dp, 0, sizeof (double) * ncount);
+	memset(cp, 0, sizeof (fftw_complex) * ncount);
+
+	// initialize the dft...
+	double *dp_t;
+    fftw_plan plan_t;
+	fftw_complex *cp_t;
+
+    dp_t = (double *)malloc(sizeof (double) * ncount);
+	cp_t = (fftw_complex *)fftw_malloc(sizeof (fftw_complex) * ncount);
+	memset(dp_t, 0, sizeof (double) * ncount);
+	memset(cp_t, 0, sizeof (fftw_complex) * ncount);
+
+	int i;
+    double real,ima,amp,cosina,sina;
+
+	for (i = 0; i < ncount; i++)
+	{
+		if (i < ncount/2+1)
+		{
+            real = real_p[i];
+            ima = ima_p[i];
+			amp = sqrt(real*real+ima*ima);
+			cosina = real/amp;
+			sina = ima/amp;
+
+			cp[i][0] = amp*(cosina);
+			cp[i][1] = amp*(sina);
+			//cp[i][0] = amp*(cosina*cos(-i*3.1415926)-sina*sin(-i*3.1415926));
+			//cp[i][1] = amp*(sina*cos(-i*3.1415926)+cosina*sin(-i*3.1415926));
+			//cp[i][0]=real_s[i]-real_p[i];
+			//cp[i][1]=ima_s[i]-ima_p[i];
+			//cp[i][0]=-real_s[i]+real_p[i];
+			//cp[i][1]=-ima_s[i]+ima_p[i];
+			cp_t[i][0] = real_p[i];
+			cp_t[i][1] = ima_p[i];
+			//cp[i][0]=real_p[i];
+			//cp[i][1]=ima_p[i];
+		}
+		else
+		{
+			cp[i][0]=0.0;
+			cp[i][1]=0.0;
+			cp_t[i][0]=0.0;
+			cp_t[i][1]=0.0;
+		}
+	}
+
+    plan_t = fftw_plan_dft_c2r_1d(ncount, cp_t, dp_t, FFTW_MEASURE);
+
+    fftw_execute(plan_t);
+
+    fftw_destroy_plan(plan_t);
+
+	/////////////////////////////////////////////////////////////////
+
+    plan = fftw_plan_dft_c2r_1d(ncount, cp, dp, FFTW_MEASURE);
+
+    fftw_execute(plan);
+
+    fftw_destroy_plan(plan);
+
+	for (i = 0; i < ncount; i++)
+	{
+		p_new[i] = dp[i]/ncount;  // normalized by the ncount
+		//printf ("%lf\n", p_new[i]);
+	}
+
+	return 0;
 }
 

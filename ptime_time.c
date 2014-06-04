@@ -108,6 +108,7 @@ int main (int argc, char *argv[])
 	{
 		// get the data file name
 		strcpy(fname,argv[k]);
+		printf ("%s\n", fname);
 
 		// name of different extension
 		strcpy(name_data,fname);
@@ -122,7 +123,7 @@ int main (int argc, char *argv[])
 	
 		double psrfreq;
 		psrfreq = read_psrfreq(name_psrparam);
-		printf ("%.15lf\n", psrfreq);
+		//printf ("%.15lf\n", psrfreq);
 	
 		////////////////////////////////////////////////
 		long int imjd, smjd;

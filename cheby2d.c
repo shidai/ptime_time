@@ -441,7 +441,7 @@ int ChebyModel_Read(ChebyModel *cm, FILE *f)
   {
     if (fgets(line, 1024, f)!=line)
       return -1;
-    printf("Read %s\n",line);
+    //printf("Read %s\n",line);
     if (sscanf(line, "%s", keyword)!=1)
       continue; // skip blank lines
     if (sscanf(line, "%s %s", keyword, arg)!=2)
@@ -483,19 +483,19 @@ int ChebyModel_Read(ChebyModel *cm, FILE *f)
     }
     else if (!strcasecmp(keyword, "COEFFS"))
     {
-      printf("Have nx = %d %d\n",nx,ny);
+      //printf("Have nx = %d %d\n",nx,ny);
       if (cm->cheby.coeff==NULL) // first instance of COEFF keyword
       {
 	if (nx < 0 && ny < 0) // oops, these should come first!
 	  return -8;
 	ChebyModel_Init(cm, nx, ny);
-	printf("Initialised the memory\n");
+	//printf("Initialised the memory\n");
       }
       if (ix >= nx)
 	return -9; // too many coefficient lines!!
 
       sscanf(line, "%*s %n", &ichar);
-      printf("Line = %s %d %d\n",line,ny,ichar);
+      //printf("Line = %s %d %d\n",line,ny,ichar);
       if (ny<4) // All on one line
 	{
 	  for (iy=0; iy < cm->cheby.ny; iy++)
@@ -613,26 +613,26 @@ int ChebyModelSet_Read(ChebyModelSet *cms, FILE *f)
   char line[1024], keyword[64];
   int iseg;
   int ret;
-  printf("Got here a\n");
+  //printf("Got here a\n");
   if (fgets(line, 1024, f)!=line)
     return -1;
-  printf("Got here b\n");
+  //printf("Got here b\n");
   if (sscanf(line, "%s %d", keyword, &cms->nsegments)!=2)
     return -1;
-  printf("Got here c\n");
+  //printf("Got here c\n");
   if (strcasecmp(keyword, "ChebyModelSet"))
     return -1;
-  printf("Got here d\n");
+  //printf("Got here d\n");
   if (!(cms->segments = (ChebyModel *)malloc(cms->nsegments*sizeof(ChebyModel))))
     {
       printf("Unable to allocate memory in reading predictor\n");
       exit(1);
     }
-  printf("Got here e %d\n",cms->nsegments);
+  //printf("Got here e %d\n",cms->nsegments);
   for (iseg=0; iseg < cms->nsegments ; iseg++)
     if ((ret=ChebyModel_Read(&cms->segments[iseg], f)) != 0)
       return ret;
-  printf("Got here f\n");
+  //printf("Got here f\n");
   return 0;
 }
 
