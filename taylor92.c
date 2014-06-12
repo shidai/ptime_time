@@ -527,7 +527,7 @@ int get_toa (double *s, double *p, double *phasex, double *errphasex, double psr
 	double step;
 	double ini_phase,up_phase,low_phase;
 
-	d = InitialGuess (s, p, nphase);
+	d = InitialGuess (s, p, nphase, 1);
 	//d=peak_p-peak_s;
 	//printf ("Initial guess: %d\n",d);
 	step=2.0*3.1415926/(10.0*nphase);
@@ -633,6 +633,7 @@ int get_toa_multi (double *s, double *p, double *rms, int nchn, double *phasex, 
 	preA7(&k, amp_s, amp_p, phi_s, phi_p, s, p, nphase, nchn);
 	
 	// initial guess of the phase
+	/*
 	// use the central subchannel to guess the phase shift
 	double pt[nphase];
 	double st[nphase];
@@ -647,12 +648,14 @@ int get_toa_multi (double *s, double *p, double *rms, int nchn, double *phasex, 
 
 	find_peak(nphase,st,&peak_s);
 	find_peak(nphase,pt,&peak_p);
+	*/
 
 	int d;
 	double step;
 	double ini_phase,up_phase,low_phase;
 
-	d = InitialGuess (st, pt, nphase);
+	d = InitialGuess (s, p, nphase, nchn);
+	//d = InitialGuess (st, pt, nphase, nchn);
 	//d=peak_p-peak_s;
 	//printf ("Initial guess: %d\n",d);
 	step=2.0*3.1415926/(10.0*nphase);
@@ -1321,22 +1324,52 @@ int pre_diff (double *s, int nphase, int index, double frac_off, double *s_out)
 }
 
 
-int InitialGuess (double *s, double *p, int nphase) 
+int InitialGuess (double *s, double *p, int nphase, int nchn) 
 {
 	int index;
 	double frac_off = 0.05;  // set to be 0.05
 
+	double ptemp[nphase];
+	double temp[nchn];
+	int i, h;
+	for (i = 0; i < nchn; i++)
+	{
+		for (h = 0; h < nphase; h++)
+		{
+			ptemp[h] = p[i*nphase+h];
+		}
+		int x;
+		x = def_off_pulse (nphase, ptemp, frac_off);
+
+		double ptemp_out[nphase];
+		pre_diff (ptemp, nphase, x, frac_off, ptemp_out);
+
+		temp[i] = find_peak_value(nphase,ptemp_out);
+	}
+
+	int peak;
+	find_peak (nchn, temp, &peak);
+	//printf ("%d\n",peak);
+
+	double p_use[nphase];
+	double s_use[nphase];
+	for (h = 0; h < nphase; h++)
+	{
+		p_use[h] = p[peak*nphase+h];
+		s_use[h] = s[peak*nphase+h];
+	}
+
 	// remove the baseline of template
-	index = def_off_pulse (nphase, s, frac_off);
+	index = def_off_pulse (nphase, s_use, frac_off);
 
 	double s_out[nphase];
-	pre_diff (s, nphase, index, frac_off, s_out);
+	pre_diff (s_use, nphase, index, frac_off, s_out);
 
 	// remove the baseline of profile
-	index = def_off_pulse (nphase, p, frac_off);
+	index = def_off_pulse (nphase, p_use, frac_off);
 
 	double p_out[nphase];
-	pre_diff (p, nphase, index, frac_off, p_out);
+	pre_diff (p_use, nphase, index, frac_off, p_out);
 
 	// Guess the phase shift
 	int d;

@@ -93,7 +93,7 @@ int remove_baseline (double *in, int index, double frac_off, int n, double *out)
 
 int pre_diff (double *s, int nphase, int index, double frac_off, double *s_out);
 
-int InitialGuess (double *s, double *p, int nphase);
+int InitialGuess (double *s, double *p, int nphase, int nchn);
 
 int preA7_QUV (double *p, int nphase, int nchn, double *real_p, double *ima_p);
 
