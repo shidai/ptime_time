@@ -555,46 +555,54 @@ double read_psrfreq ( char *name )
 	char F0[100];
 
 	int colnum = 1;
-    int frow = 7;
-    int	felem = 1;
-    int nelem = 1;
-    int	anynull = 0;
-    char nval[]="NULL";
+  int frow;
+  //int frow = 7;
+  int	felem = 1;
+  int nelem = 1;
+  int	anynull = 0;
+  char nval[]="NULL";
 
 	char **line;
 	line = (char **)malloc(sizeof(char *));
 	line[0] = (char *)malloc(sizeof(char)*1024);
 
-	fits_read_col(fptr, TSTRING, colnum, frow, felem, nelem, nval, line, &anynull, &status);           // read the column
-
-	//puts(line[0]);
-
-	int nchar = strlen(line[0]);
-	//printf("strlen %d\n", nchar);
-
-	int i;
-	for (i = 0; i < nchar; i++)
-	{
-		F0[i] = line[0][i];
-	}
-	//printf("F0 %s\n", F0);
-
 	double a[10];
-	int l = 0;
-	int j = 0;
-	for (i = 0; i < nchar; i++)
+	for (frow = 1; frow < 20; frow++)
 	{
-		if( (F0[i] >= '0' && F0[i] <= '9') || F0[i] =='.' ) 
-		{ 
-			freq[l] = F0[i];
-			l++;
-		}
-		else if(l > 0)
+		fits_read_col(fptr, TSTRING, colnum, frow, felem, nelem, nval, line, &anynull, &status);           // read the column
+
+		//puts(line[0]);
+
+		int nchar = strlen(line[0]);
+		//printf("strlen %d\n", nchar);
+
+		int i;
+		for (i = 0; i < nchar; i++)
 		{
-			freq[l] = '\0';
-			a[j]=atof(freq);
-			j++;
-			l=0;
+			F0[i] = line[0][i];
+		}
+		//printf("F0 %s\n", F0);
+
+		if (F0[0] == 'F' && F0[1] == '0')
+		{
+			int l = 0;
+			int j = 0;
+			for (i = 0; i < nchar; i++)
+			{
+				if( (F0[i] >= '0' && F0[i] <= '9') || F0[i] =='.' ) 
+				{ 
+					freq[l] = F0[i];
+					l++;
+				}
+				else if(l > 0)
+				{
+					freq[l] = '\0';
+					a[j]=atof(freq);
+					j++;
+					l=0;
+				}
+			}
+			break;
 		}
 	}
 
@@ -608,11 +616,12 @@ double read_psrfreq ( char *name )
 	double psrfreq;
 	psrfreq = a[1];
 
-    if ( fits_close_file(fptr, &status) )
-    {
-        printf( " error while closing the file\n " );
-    }
+  if ( fits_close_file(fptr, &status) )
+  {
+		printf( " error while closing the file\n " );
+  }
 
+	free(line);
 	return psrfreq;
 }
 

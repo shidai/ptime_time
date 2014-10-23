@@ -123,7 +123,7 @@ int main (int argc, char *argv[])
 	
 		double psrfreq;
 		psrfreq = read_psrfreq(name_psrparam);
-		//printf ("%.15lf\n", psrfreq);
+		printf ("psrfreq: %.15lf\n", psrfreq);
 	
 		////////////////////////////////////////////////
 		long int imjd, smjd;
